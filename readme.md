@@ -1,3 +1,3 @@
-## <NOME SUJEITO A ALTERAÇÃO>
+## RoomLab Manager
 
 Initial commit

@@ -1,183 +1,466 @@
 from fastapi import APIRouter
 
 router = APIRouter()
-
-@router.post("/auth/login")  # RF02
+# Parte da auth
+@router.post("/auth/login")
 async def login():
-    pass
+    return {
+        "email": "usuario@email.com",
+        "sessao": "autenticada"
+    }
 
-@router.post("/usuarios")  # RF01
+# Parte dos users
+
+@router.post("/usuarios")
 async def create_usuario():
-    pass
+    return {
+        "usuario": {
+            "id": 1,
+            "nome": "Nome",
+            "email": "email@email.com",
+            "tipo": "professor"
+        }
+    }
 
 @router.get("/usuarios")
 async def list_usuarios():
-    pass
+    return {
+        "usuarios": [
+            {
+                "id": 1,
+                "nome": "Nome",
+                "email": "email@email.com",
+                "tipo": "professor"
+            }
+        ]
+    }
 
 @router.get("/usuarios/{usuario_id}")
 async def get_usuario(usuario_id: int):
-    pass
+    return {
+        "usuario": {
+            "id": usuario_id,
+            "nome": "Nome",
+            "email": "email@email.com",
+            "tipo": "professor"
+        }
+    }
 
-@router.put("/usuarios/{usuario_id}")  # RF03 (gerenciamento de perfil)
+@router.put("/usuarios/{usuario_id}")
 async def update_usuario(usuario_id: int):
-    pass
+    return {
+        "usuario": {
+            "id": usuario_id,
+            "tipo": "admin"
+        }
+    }
 
 @router.delete("/usuarios/{usuario_id}")
 async def delete_usuario(usuario_id: int):
-    pass
+    return {
+        "resultado": "removido"
+    }
 
 @router.post("/andares")
 async def create_andar():
-    pass
+    return {
+        "andar": {
+            "id": 1,
+            "numero": 1
+        }
+    }
+
+# Parte dos andares
 
 @router.get("/andares")
 async def list_andares():
-    pass
+    return {
+        "andares": [
+            {
+                "id": 1,
+                "numero": 1
+            }
+        ]
+    }
 
 @router.get("/andares/{andar_id}")
 async def get_andar(andar_id: int):
-    pass
+    return {
+        "andar": {
+            "id": andar_id,
+            "numero": 1
+        }
+    }
 
 @router.put("/andares/{andar_id}")
 async def update_andar(andar_id: int):
-    pass
+    return {
+        "andar": {
+            "id": andar_id,
+            "numero": 2
+        }
+    }
 
 @router.delete("/andares/{andar_id}")
 async def delete_andar(andar_id: int):
-    pass
+    return {
+        "resultado": "removido"
+    }
 
-@router.post("/salas")  # RF05
+# Parte das salas
+
+@router.post("/salas")
 async def create_sala():
-    pass
+    return {
+        "sala": {
+            "id": 1,
+            "nome": "Sala 1",
+            "capacidade": 30,
+            "tipo": "sala",
+            "id_andar": 1
+        }
+    }
 
 @router.get("/salas")
 async def list_salas():
-    pass
+    return {
+        "salas": [
+            {
+                "id": 1,
+                "nome": "Sala 1",
+                "capacidade": 30,
+                "tipo": "sala",
+                "id_andar": 1
+            }
+        ]
+    }
 
 @router.get("/salas/{sala_id}")
 async def get_sala(sala_id: int):
-    pass
+    return {
+        "sala": {
+            "id": sala_id,
+            "nome": "Sala 1",
+            "capacidade": 30,
+            "tipo": "sala",
+            "id_andar": 1
+        }
+    }
 
 @router.put("/salas/{sala_id}")
 async def update_sala(sala_id: int):
-    pass
+    return {
+        "sala": {
+            "id": sala_id,
+            "nome": "Sala Atualizada",
+            "capacidade": 35,
+            "tipo": "sala",
+            "id_andar": 1
+        }
+    }
 
 @router.delete("/salas/{sala_id}")
 async def delete_sala(sala_id: int):
-    pass
+    return {
+        "resultado": "removido"
+    }
 
-# RF06 - definir horários de alocação
 @router.post("/salas/{sala_id}/horarios")
 async def definir_horarios_sala(sala_id: int):
-    pass
+    return {
+        "id_sala": sala_id,
+        "horarios": [
+            {
+                "inicio": "08:00",
+                "fim": "10:00"
+            }
+        ]
+    }
 
-# RF12 - status das salas
 @router.get("/salas/status")
 async def status_salas():
-    pass
+    return {
+        "salas": [
+            {
+                "id_sala": 1,
+                "status": "ocupada"
+            }
+        ]
+    }
 
-# RF18 - filtros e busca
 @router.get("/salas/busca")
 async def buscar_salas():
-    pass
+    return {
+        "salas": [
+            {
+                "id": 1,
+                "nome": "Sala 1",
+                "capacidade": 30,
+                "tipo": "sala",
+                "id_andar": 1
+            }
+        ]
+    }
 
-# RF19 - localização
 @router.get("/salas/{sala_id}/localizacao")
 async def localizar_sala(sala_id: int):
-    pass
+    return {
+        "id_sala": sala_id,
+        "andar": 1
+    }
 
-@router.post("/disciplinas")  # RF07
+# Parte das disciplinas
+
+@router.post("/disciplinas")
 async def create_disciplina():
-    pass
+    return {
+        "disciplina": {
+            "id": 1,
+            "nome": "Disciplina",
+            "codigo": "COD01"
+        }
+    }
 
 @router.get("/disciplinas")
 async def list_disciplinas():
-    pass
+    return {
+        "disciplinas": [
+            {
+                "id": 1,
+                "nome": "Disciplina",
+                "codigo": "COD01"
+            }
+        ]
+    }
 
 @router.get("/disciplinas/{disciplina_id}")
 async def get_disciplina(disciplina_id: int):
-    pass
+    return {
+        "disciplina": {
+            "id": disciplina_id,
+            "nome": "Disciplina",
+            "codigo": "COD01"
+        }
+    }
 
 @router.put("/disciplinas/{disciplina_id}")
 async def update_disciplina(disciplina_id: int):
-    pass
+    return {
+        "disciplina": {
+            "id": disciplina_id,
+            "nome": "Disciplina Atualizada",
+            "codigo": "COD01"
+        }
+    }
 
 @router.delete("/disciplinas/{disciplina_id}")
 async def delete_disciplina(disciplina_id: int):
-    pass
+    return {
+        "resultado": "removido"
+    }
 
-# RF08 - associação usuário-disciplina
 @router.post("/usuarios/{usuario_id}/disciplinas/{disciplina_id}")
 async def associar_usuario_disciplina(usuario_id: int, disciplina_id: int):
-    pass
+    return {
+        "id_usuario": usuario_id,
+        "id_disciplina": disciplina_id
+    }
 
 @router.delete("/usuarios/{usuario_id}/disciplinas/{disciplina_id}")
 async def remover_usuario_disciplina(usuario_id: int, disciplina_id: int):
-    pass
+    return {
+        "resultado": "removido"
+    }
 
-@router.post("/reservas")  # RF09
+# Parte das reservas
+
+@router.post("/reservas")
 async def create_reserva():
-    pass
+    return {
+        "reserva": {
+            "id": 1,
+            "id_sala": 1,
+            "id_disciplina": 1,
+            "data_inicio": "2026-04-10 08:00",
+            "data_fim": "2026-04-10 10:00",
+            "descricao": "Aula"
+        }
+    }
 
 @router.get("/reservas")
 async def list_reservas():
-    pass
+    return {
+        "reservas": [
+            {
+                "id": 1,
+                "id_sala": 1,
+                "id_disciplina": 1,
+                "data_inicio": "2026-04-10 08:00",
+                "data_fim": "2026-04-10 10:00",
+                "descricao": "Aula"
+            }
+        ]
+    }
 
 @router.get("/reservas/{reserva_id}")
 async def get_reserva(reserva_id: int):
-    pass
+    return {
+        "reserva": {
+            "id": reserva_id,
+            "id_sala": 1,
+            "id_disciplina": 1,
+            "data_inicio": "2026-04-10 08:00",
+            "data_fim": "2026-04-10 10:00",
+            "descricao": "Aula"
+        }
+    }
 
-@router.delete("/reservas/{reserva_id}")  # RF14
+@router.delete("/reservas/{reserva_id}")
 async def cancelar_reserva(reserva_id: int):
-    pass
+    return {
+        "id_reserva": reserva_id,
+        "status": "cancelada"
+    }
 
-# RF10 - validação de conflito
 @router.post("/reservas/validar-conflito")
 async def validar_conflito():
-    pass
+    return {
+        "valido": True
+    }
 
-# RF11 - disponibilidade de salas
 @router.get("/reservas/disponibilidade")
 async def consultar_disponibilidade():
-    pass
+    return {
+        "salas": [
+            {
+                "id_sala": 1,
+                "disponivel": True
+            }
+        ]
+    }
 
-@router.post("/eventos")  # RF15
+# Parte dos eventos
+
+@router.post("/eventos")
 async def create_evento():
-    pass
+    return {
+        "evento": {
+            "id": 1,
+            "titulo": "Evento",
+            "descricao": "Descricao",
+            "id_sala": 1,
+            "data_inicio": "2026-05-01 08:00",
+            "data_fim": "2026-05-01 10:00",
+            "tipo": "institucional"
+        }
+    }
 
-@router.get("/eventos")  # RF16
+@router.get("/eventos")
 async def list_eventos():
-    pass
+    return {
+        "eventos": [
+            {
+                "id": 1,
+                "titulo": "Evento",
+                "descricao": "Descricao",
+                "id_sala": 1,
+                "data_inicio": "2026-05-01 08:00",
+                "data_fim": "2026-05-01 10:00",
+                "tipo": "institucional"
+            }
+        ]
+    }
 
 @router.get("/eventos/{evento_id}")
 async def get_evento(evento_id: int):
-    pass
+    return {
+        "evento": {
+            "id": evento_id,
+            "titulo": "Evento",
+            "descricao": "Descricao",
+            "id_sala": 1,
+            "data_inicio": "2026-05-01 08:00",
+            "data_fim": "2026-05-01 10:00",
+            "tipo": "institucional"
+        }
+    }
 
 @router.put("/eventos/{evento_id}")
 async def update_evento(evento_id: int):
-    pass
+    return {
+        "evento": {
+            "id": evento_id,
+            "titulo": "Evento Atualizado",
+            "descricao": "Descricao",
+            "id_sala": 1,
+            "data_inicio": "2026-05-01 08:00",
+            "data_fim": "2026-05-01 10:00",
+            "tipo": "institucional"
+        }
+    }
 
 @router.delete("/eventos/{evento_id}")
 async def delete_evento(evento_id: int):
-    pass
+    return {
+        "resultado": "removido"
+    }
 
-# RF17 - participação
 @router.post("/eventos/{evento_id}/participar")
 async def participar_evento(evento_id: int):
-    pass
+    return {
+        "id_evento": evento_id,
+        "participacao": "confirmada"
+    }
 
 @router.delete("/eventos/{evento_id}/participar")
 async def sair_evento(evento_id: int):
-    pass
+    return {
+        "id_evento": evento_id,
+        "participacao": "removida"
+    }
 
-# =========================
+# Parte da agenda
 
-# RF13 - agenda do usuário
 @router.get("/usuarios/{usuario_id}/agenda")
 async def agenda_usuario(usuario_id: int):
-    pass
+    return {
+        "id_usuario": usuario_id,
+        "reservas": [
+            {
+                "id": 1,
+                "id_sala": 1,
+                "data_inicio": "2026-04-10 08:00",
+                "data_fim": "2026-04-10 10:00"
+            }
+        ],
+        "eventos": [
+            {
+                "id": 1,
+                "titulo": "Evento",
+                "data_inicio": "2026-05-01 08:00",
+                "data_fim": "2026-05-01 10:00"
+            }
+        ]
+    }
 
-# RF20 - agenda geral
 @router.get("/agenda")
 async def agenda_geral():
-    pass
+    return {
+        "data": "2026-04-10",
+        "reservas": [
+            {
+                "id": 1,
+                "id_sala": 1,
+                "data_inicio": "2026-04-10 08:00",
+                "data_fim": "2026-04-10 10:00"
+            }
+        ],
+        "eventos": [
+            {
+                "id": 1,
+                "titulo": "Evento",
+                "data_inicio": "2026-05-01 08:00",
+                "data_fim": "2026-05-01 10:00"
+            }
+        ]
+    }

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, APIRouter, HTTPException
 from datetime import date, time
 from pydantic import BaseModel, model_validator
-from typing import Union, Literal
+from typing import Union, Literal, List
 import uvicorn
 
 app = FastAPI()
@@ -17,6 +17,7 @@ class ReservaSemestral(BaseModel):
     data_fim: date
     horario_inicio: time
     horario_fim: time
+    dias_semana: List[Literal["segunda","terca","quarta","quinta","sexta","sabado","domingo"]]
 
 class ReservaDiaria(BaseModel):
     data: date
@@ -75,6 +76,10 @@ async def create_reserva(dados: ReservaRequest):
             "horario_fim": dados.detalhes.horario_fim,
         }
 
+        """_summary_
+        o problema dessa lógica é que ele só consegue setar um horario para os dois dias
+        o usuario precisa setar o horario por dia de aula
+        """
     elif dados.tipo_reserva == "semestral":
         reservas[id_reserva] = {
             "id_sala": dados.id_sala,
@@ -83,6 +88,7 @@ async def create_reserva(dados: ReservaRequest):
             "tipo_reserva": dados.tipo_reserva,
             "data_inicio": dados.detalhes.data_inicio,
             "data_fim": dados.detalhes.data_fim,
+            "dias_semana": dados.detalhes.dias_semana,
             "horario_inicio": dados.detalhes.horario_inicio,
             "horario_fim": dados.detalhes.horario_fim,
         }

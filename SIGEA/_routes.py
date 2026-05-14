@@ -79,6 +79,15 @@ async def create_reserva(dados: ReservaRequest):
         """_summary_
         o problema dessa lógica é que ele só consegue setar um horario para os dois dias
         o usuario precisa setar o horario por dia de aula
+
+        RESOLUÇÃO (sugestão)-
+            A cada dia que o usuario adicionar, adiciona um campo de horario para cada dia da semana
+        Ex:
+            dias_semana: ["segunda", "terca"]
+            horario_inicio_segunda : ....
+            horario_fim_segunda : ....
+            horario_inicio_terca : ....
+            horario_fim_terca : ....
         """
     elif dados.tipo_reserva == "semestral":
         reservas[id_reserva] = {

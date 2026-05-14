@@ -5,7 +5,7 @@ from typing import Union, Literal
 import uvicorn
 
 app = FastAPI()
-router = APIRouter(prefix="/auth", tags=["Autenticação"])
+router = APIRouter(tags=["Sistema de reserva"])
  
 class LoginRequest(BaseModel):
     email: str
@@ -24,13 +24,13 @@ class ReservaDiaria(BaseModel):
     horario_fim: time
 
 class ReservaRequest(BaseModel):
-    id_reserva: int
     id_sala: int
     id_disciplina: int
     descricao: str
-    tipo_reserva: Literal["diaria", "semestral"]  # Garante apenas estas duas opções
-    detalhes: Union[ReservaDiaria, ReservaSemestral]  # Aceita um modelo ou o outro
+    tipo_reserva: Literal["diaria", "semestral"]
+    detalhes: Union[ReservaDiaria, ReservaSemestral]
 
+    @model_validator(mode='after')
     def verificar_tipo_detalhes(self):
         if self.tipo_reserva == "diaria" and not isinstance(self.detalhes, ReservaDiaria):
             raise ValueError("Para 'tipo_reserva' igual a 'diaria', insira os campos de ReservaDiaria.")
@@ -44,6 +44,7 @@ SENHA = "senha123"
 # ROLE_ALUNO = 1
 salas = [201, 202, 204]
 reservas = {}
+contador_reserva = 0
 
 @router.post("/login", summary="Fazer login")
 async def login(dados: LoginRequest):
@@ -55,10 +56,16 @@ async def login(dados: LoginRequest):
 
 @router.post("/reservas", summary="Realizar reserva de sala")
 async def create_reserva(dados: ReservaRequest):
+    global contador_reserva
+    
     if dados.id_sala not in salas:
-        raise HTTPException(status_code=404, detail={"sucesso": False, "mensagem": "Sala não encontrada"}) 
+        raise HTTPException(status_code=404, detail={"sucesso": False, "mensagem": "Sala não encontrada"})
+    
+    contador_reserva += 1
+    id_reserva = contador_reserva
+    
     if dados.tipo_reserva == "diaria":
-        reservas[dados.id_reserva] = {
+        reservas[id_reserva] = {
             "id_sala": dados.id_sala,
             "id_disciplina": dados.id_disciplina,
             "descricao": dados.descricao,
@@ -69,7 +76,7 @@ async def create_reserva(dados: ReservaRequest):
         }
 
     elif dados.tipo_reserva == "semestral":
-        reservas[dados.id_reserva] = {
+        reservas[id_reserva] = {
             "id_sala": dados.id_sala,
             "id_disciplina": dados.id_disciplina,
             "descricao": dados.descricao,
@@ -83,19 +90,10 @@ async def create_reserva(dados: ReservaRequest):
     return {
         "sucesso": True, 
         "mensagem": f"Reserva {dados.tipo_reserva} realizada com sucesso!",
-        "dados_salvos": reservas[dados.id_reserva]
+        "id_reserva": id_reserva,
+        "reserva": reservas[id_reserva]
     }        
 app.include_router(router)
  
 if __name__ == "__main__":
-    uvicorn.run("routes:app", host="localhost", port=8000, reload=True)
-
-#     "reserva": {
-    #     "id": 1,
-    #     "id_sala": 1,
-    #     "semestral": boolean,
-    #     "id_disciplina": 1,
-    #     "datetime_inicio": "2026-04-10 08:00",
-    #     "datetime_fim": "2026-04-10 10:00",
-    #     "descricao": "Aula"
-    # }
+    uvicorn.run("_routes:app", host="localhost", port=8000, reload=True)

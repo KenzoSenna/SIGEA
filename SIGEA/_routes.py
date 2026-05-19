@@ -1,23 +1,43 @@
 from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import date, time
 from pydantic import BaseModel, model_validator
 from typing import Union, Literal, List
 import uvicorn
 
 app = FastAPI()
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # coloque os domínios permitidos em produção
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 router = APIRouter(tags=["Sistema de reserva"])
  
 class LoginRequest(BaseModel):
     email: str
     senha: str
-    #role: int
 
 class ReservaSemestral(BaseModel):
     data_inicio: date
     data_fim: date
     horario_inicio: time
     horario_fim: time
-    dias_semana: List[Literal["segunda","terca","quarta","quinta","sexta","sabado","domingo"]]
+    dias_semana: List[
+        Literal[
+            "segunda",
+            "terca",
+            "quarta",
+            "quinta",
+            "sexta",
+            "sabado",
+            "domingo"
+        ]
+    ]
 
 class ReservaDiaria(BaseModel):
     data: date
@@ -34,15 +54,23 @@ class ReservaRequest(BaseModel):
     @model_validator(mode='after')
     def verificar_tipo_detalhes(self):
         if self.tipo_reserva == "diaria" and not isinstance(self.detalhes, ReservaDiaria):
-            raise ValueError("Para 'tipo_reserva' igual a 'diaria', insira os campos de ReservaDiaria.")
-        if self.tipo_reserva == "semestral" and not isinstance(self.detalhes, ReservaSemestral):
-            raise ValueError("Para 'tipo_reserva' igual a 'semestral', insira os campos de ReservaSemestral.")
+            raise ValueError(
+                "Para 'tipo_reserva' igual a 'diaria', insira os campos de ReservaDiaria."
+            )
+
+        if self.tipo_reserva == "semestral" and not isinstance(
+            self.detalhes,
+            ReservaSemestral
+        ):
+            raise ValueError(
+                "Para 'tipo_reserva' igual a 'semestral', insira os campos de ReservaSemestral."
+            )
+
         return self
     
 EMAIL = "usuario@email.com"
 SENHA = "senha123"
-# ROLE_PROFESSOR = 0
-# ROLE_ALUNO = 1
+
 salas = [201, 202, 204]
 reservas = {}
 contador_reserva = 0
@@ -50,17 +78,42 @@ contador_reserva = 0
 @router.post("/login", summary="Fazer login")
 async def login(dados: LoginRequest):
     if dados.email != EMAIL:
-        raise HTTPException(status_code=401, detail={"sucesso": False, "mensagem": "Credenciais inválidas"})
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "sucesso": False,
+                "mensagem": "Credenciais inválidas"
+            }
+        )
+
     if dados.senha != SENHA:
-        raise HTTPException(status_code=401, detail={"sucesso": False, "mensagem": "Credenciais inválidas"})
-    return {"sucesso": True, "mensagem": "Autenticação realizada com sucesso", "email": dados.email, "sessao": "autenticada"}
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "sucesso": False,
+                "mensagem": "Credenciais inválidas"
+            }
+        )
+
+    return {
+        "sucesso": True,
+        "mensagem": "Autenticação realizada com sucesso",
+        "email": dados.email,
+        "sessao": "autenticada"
+    }
 
 @router.post("/reservas", summary="Realizar reserva de sala")
 async def create_reserva(dados: ReservaRequest):
     global contador_reserva
     
     if dados.id_sala not in salas:
-        raise HTTPException(status_code=404, detail={"sucesso": False, "mensagem": "Sala não encontrada"})
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "sucesso": False,
+                "mensagem": "Sala não encontrada"
+            }
+        )
     
     contador_reserva += 1
     id_reserva = contador_reserva
@@ -76,19 +129,6 @@ async def create_reserva(dados: ReservaRequest):
             "horario_fim": dados.detalhes.horario_fim,
         }
 
-        """_summary_
-        o problema dessa lógica é que ele só consegue setar um horario para os dois dias
-        o usuario precisa setar o horario por dia de aula
-
-        RESOLUÇÃO (sugestão)-
-            A cada dia que o usuario adicionar, adiciona um campo de horario para cada dia da semana
-        Ex:
-            dias_semana: ["segunda", "terca"]
-            horario_inicio_segunda : ....
-            horario_fim_segunda : ....
-            horario_inicio_terca : ....
-            horario_fim_terca : ....
-        """
     elif dados.tipo_reserva == "semestral":
         reservas[id_reserva] = {
             "id_sala": dados.id_sala,
@@ -103,12 +143,13 @@ async def create_reserva(dados: ReservaRequest):
         }
 
     return {
-        "sucesso": True, 
+        "sucesso": True,
         "mensagem": f"Reserva {dados.tipo_reserva} realizada com sucesso!",
         "id_reserva": id_reserva,
         "reserva": reservas[id_reserva]
-    }        
+    }
+
 app.include_router(router)
  
 if __name__ == "__main__":
-    uvicorn.run("_routes:app", host="localhost", port=8000, reload=True)
+    uvicorn.run("_routes:app", host="0.0.0.0", port=8000, reload=True)

@@ -22,11 +22,11 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         return URL.create(
             drivername=f"mysql+pymysql",
-            username='root',
-            password='peqnerdspl5902@K',
-            host='localhost',
-            port=3306,
-            database='sigea',
+            username=self.db_user,
+            password=self.db_password,
+            host=self.db_host,
+            port=self.db_port,
+            database=self.db_name,
             query={"charset": "utf8mb4"}
         )
 

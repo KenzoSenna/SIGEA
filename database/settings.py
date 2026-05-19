@@ -18,6 +18,10 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
+    secret_key: str = Field("ChaveJwt", env="SECRET_KEY")
+    jwt_algorithm: str = Field("decoderAlg", env="JWT_ALGORITHM")
+    access_token_expire_minutes: int = Field(60, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+
     @property
     def database_url(self) -> str:
         return URL.create(

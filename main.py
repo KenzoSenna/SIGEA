@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from database.settings import engine
-from _routes import router as sistema_router, router_usuarios
+from routes import routers as api_routers
 
 app = FastAPI(
     title="SIGEA - Sistema Integrado de Gestão de Espaços Acadêmicos",
@@ -26,8 +26,8 @@ async def startup_event():
     except Exception as exc:
         raise RuntimeError("Falha ao conectar ao MySQL local. Verifique as credenciais e o banco de dados.") from exc
 
-app.include_router(sistema_router)
-app.include_router(router_usuarios)
+for r in api_routers:
+    app.include_router(r)
 
 
 @app.get("/")

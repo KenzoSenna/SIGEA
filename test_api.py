@@ -3,11 +3,15 @@ import urllib.request
 import urllib.error
 
 BASE_URL = "http://localhost:8000"
+AUTH_HEADERS = {}
 
 
-def request(method, path, data=None):
+def request(method, path, data=None, headers=None):
     url = f"{BASE_URL}{path}"
-    headers = {"Content-Type": "application/json"}
+    request_headers = {"Content-Type": "application/json"}
+    request_headers.update(AUTH_HEADERS)
+    if headers:
+        request_headers.update(headers)
     body = None
     if data is not None:
         body = json.dumps(data).encode("utf-8")
@@ -75,6 +79,10 @@ def test_login():
     assert_status(status, 200, "POST /login")
     expect_sucesso(result, True)
     assert result["sessao"] == "autenticada"
+    assert "access_token" in result
+    assert result["token_type"] == "bearer"
+    AUTH_HEADERS["Authorization"] = f"Bearer {result['access_token']}"
+    return result["access_token"]
 
 
 def test_create_reserva_diaria():

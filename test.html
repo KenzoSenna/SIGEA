@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Rotas SIGEA</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin-bottom: 30px; }
+        .section h2 { color: #333; }
+        .route { margin: 5px 0; }
+        button, a { padding: 8px 12px; margin: 2px; text-decoration: none; color: white; background: #007bff; border: none; cursor: pointer; }
+        button:hover, a:hover { background: #0056b3; }
+        .post-btn { background: #28a745; }
+        .post-btn:hover { background: #1e7e34; }
+        .delete-btn { background: #dc3545; }
+        .delete-btn:hover { background: #c82333; }
+        .put-btn { background: #ffc107; color: black; }
+        .put-btn:hover { background: #e0a800; }
+        #response { margin-top: 20px; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>Teste de Rotas da API SIGEA</h1>
+    <p>Base URL: <strong>https://api.sigea.fun</strong></p>
+
+    <div class="section">
+        <h2>Rotas Gerais</h2>
+        <div class="route">
+            <button onclick="testRoute('GET', '/')">GET /</button>
+            <button onclick="testRoute('GET', '/health')">GET /health</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Autenticação</h2>
+        <div class="route">
+            <button class="post-btn" onclick="testRoute('POST', '/api/auth/login')">POST /api/auth/login</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Usuários</h2>
+        <div class="route">
+            <button class="post-btn" onclick="testRoute('POST', '/api/usuarios')">POST /api/usuarios</button>
+            <button onclick="testRoute('GET', '/api/usuarios')">GET /api/usuarios</button>
+            <button onclick="testRoute('GET', '/api/usuarios/1')">GET /api/usuarios/1</button>
+            <button class="put-btn" onclick="testRoute('PUT', '/api/usuarios/1')">PUT /api/usuarios/1</button>
+            <button class="delete-btn" onclick="testRoute('DELETE', '/api/usuarios/1')">DELETE /api/usuarios/1</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Andares</h2>
+        <div class="route">
+            <button class="post-btn" onclick="testRoute('POST', '/api/andares')">POST /api/andares</button>
+            <button onclick="testRoute('GET', '/api/andares')">GET /api/andares</button>
+            <button onclick="testRoute('GET', '/api/andares/1')">GET /api/andares/1</button>
+            <button class="put-btn" onclick="testRoute('PUT', '/api/andares/1')">PUT /api/andares/1</button>
+            <button class="delete-btn" onclick="testRoute('DELETE', '/api/andares/1')">DELETE /api/andares/1</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Salas</h2>
+        <div class="route">
+            <button class="post-btn" onclick="testRoute('POST', '/api/salas', {'user_role': '2'})">POST /api/salas (com header user_role:2)</button>
+            <button onclick="testRoute('GET', '/api/salas')">GET /api/salas</button>
+            <button onclick="testRoute('GET', '/api/salas/1')">GET /api/salas/1</button>
+            <button class="put-btn" onclick="testRoute('PUT', '/api/salas/1')">PUT /api/salas/1</button>
+            <button class="delete-btn" onclick="testRoute('DELETE', '/api/salas/1')">DELETE /api/salas/1</button>
+            <button class="post-btn" onclick="testRoute('POST', '/api/salas/1/horarios')">POST /api/salas/1/horarios</button>
+            <button onclick="testRoute('GET', '/api/salas/status')">GET /api/salas/status</button>
+            <button onclick="testRoute('GET', '/api/salas/busca')">GET /api/salas/busca</button>
+            <button onclick="testRoute('GET', '/api/salas/1/localizacao')">GET /api/salas/1/localizacao</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Disciplinas</h2>
+        <div class="route">
+            <button class="post-btn" onclick="testRoute('POST', '/api/disciplinas')">POST /api/disciplinas</button>
+            <button onclick="testRoute('GET', '/api/disciplinas')">GET /api/disciplinas</button>
+            <button onclick="testRoute('GET', '/api/disciplinas/1')">GET /api/disciplinas/1</button>
+            <button class="put-btn" onclick="testRoute('PUT', '/api/disciplinas/1')">PUT /api/disciplinas/1</button>
+            <button class="delete-btn" onclick="testRoute('DELETE', '/api/disciplinas/1')">DELETE /api/disciplinas/1</button>
+            <button class="post-btn" onclick="testRoute('POST', '/api/usuarios/1/disciplinas/1')">POST /api/usuarios/1/disciplinas/1</button>
+            <button class="delete-btn" onclick="testRoute('DELETE', '/api/usuarios/1/disciplinas/1')">DELETE /api/usuarios/1/disciplinas/1</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Reservas</h2>
+        <div class="route">
+            <button class="post-btn" onclick="testRoute('POST', '/api/reservas')">POST /api/reservas</button>
+            <button onclick="testRoute('GET', '/api/reservas')">GET /api/reservas</button>
+            <button onclick="testRoute('GET', '/api/reservas/1')">GET /api/reservas/1</button>
+            <button class="delete-btn" onclick="testRoute('DELETE', '/api/reservas/1')">DELETE /api/reservas/1</button>
+            <button class="post-btn" onclick="testRoute('POST', '/api/reservas/validar-conflito')">POST /api/reservas/validar-conflito</button>
+            <button onclick="testRoute('GET', '/api/reservas/disponibilidade')">GET /api/reservas/disponibilidade</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Eventos</h2>
+        <div class="route">
+            <button class="post-btn" onclick="testRoute('POST', '/api/eventos')">POST /api/eventos</button>
+            <button onclick="testRoute('GET', '/api/eventos')">GET /api/eventos</button>
+            <button onclick="testRoute('GET', '/api/eventos/1')">GET /api/eventos/1</button>
+            <button class="put-btn" onclick="testRoute('PUT', '/api/eventos/1')">PUT /api/eventos/1</button>
+            <button class="delete-btn" onclick="testRoute('DELETE', '/api/eventos/1')">DELETE /api/eventos/1</button>
+            <button class="post-btn" onclick="testRoute('POST', '/api/eventos/1/participar')">POST /api/eventos/1/participar</button>
+            <button class="delete-btn" onclick="testRoute('DELETE', '/api/eventos/1/participar')">DELETE /api/eventos/1/participar</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Agenda</h2>
+        <div class="route">
+            <button onclick="testRoute('GET', '/api/usuarios/1/agenda')">GET /api/usuarios/1/agenda</button>
+            <button onclick="testRoute('GET', '/api/agenda')">GET /api/agenda</button>
+        </div>
+    </div>
+
+    <div id="response"></div>
+
+    <script>
+        const baseUrl = 'https://api.sigea.fun';
+
+        async function testRoute(method, endpoint, headers = {}) {
+            const url = baseUrl + endpoint;
+            const responseDiv = document.getElementById('response');
+            responseDiv.innerHTML = '<p>Testando...</p>';
+
+            try {
+                const options = { method };
+                if (Object.keys(headers).length > 0) {
+                    options.headers = headers;
+                }
+
+                const response = await fetch(url, options);
+                const data = await response.text();
+
+                responseDiv.innerHTML = `
+                    <h3>Resposta para ${method} ${endpoint}</h3>
+                    <p><strong>Status:</strong> ${response.status} ${response.statusText}</p>
+                    <p><strong>Headers:</strong></p>
+                    <pre>${JSON.stringify(Object.fromEntries(response.headers), null, 2)}</pre>
+                    <p><strong>Body:</strong></p>
+                    <pre>${data}</pre>
+                `;
+            } catch (error) {
+                responseDiv.innerHTML = `
+                    <h3>Erro para ${method} ${endpoint}</h3>
+                    <p><strong>Erro:</strong> ${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html></content>
+<parameter name="filePath">c:\Users\kenzo.senna\Documents\Project-Sigea\test.html

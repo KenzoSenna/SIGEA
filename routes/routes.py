@@ -1,6 +1,12 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Header, HTTPException, status
+from typing import Optional
+from models.sala import SalaCreate, SalaResponse, StatusSala
+from utils import validate_user_role, validar_andar
 
 router = APIRouter()
+
+# Armazenamento em memória para salas (MOCADO)
+sala_db = {}
 # Parte da auth
 @router.post("/auth/login")
 async def login():
@@ -109,17 +115,49 @@ async def delete_andar(andar_id: int):
 
 # Parte das salas
 
-@router.post("/salas")
-async def create_sala():
-    return {
-        "sala": {
-            "id": 1,
-            "nome": "Sala 1",
-            "capacidade": 30,
-            "tipo": "sala",
-            "id_andar": 1
-        }
+@router.post("/salas", response_model=SalaResponse)
+async def create_sala(
+    sala: SalaCreate,
+    user_role: int = Header(..., description="Role do usuário autenticado")
+):
+    """
+    Cria uma nova sala. Requer role >= 2 para acesso.
+    
+    - **user_role**: Role do usuário (header obrigatório para teste)
+    - **sala**: Dados da sala a ser criada
+    
+    Exemplo de header: user_role: 2
+    """
+    
+    # Valida role do usuário
+    validate_user_role(user_role, required_role=2)
+    
+    # Valida se o andar existe
+    if not validar_andar(sala.id_andar):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Andar com ID {sala.id_andar} não encontrado"
+        )
+    
+    # Gera um novo ID para a sala
+    novo_id = max(sala_db.keys(), default=0) + 1
+    
+    # Cria a sala
+    nova_sala = {
+        "id_sala": novo_id,
+        "nome": sala.nome,
+        "capacidade": sala.capacidade,
+        "tipo": sala.tipo,
+        "status": sala.status,
+        "horario_inicio": sala.horario_inicio,
+        "horario_fim": sala.horario_fim,
+        "id_andar": sala.id_andar
     }
+    
+    # Armazena no banco de dados mocado
+    sala_db[novo_id] = nova_sala
+    
+    return nova_sala
 
 @router.get("/salas")
 async def list_salas():

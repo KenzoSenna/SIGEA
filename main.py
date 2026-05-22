@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from database.settings import engine
+from database.settings import engine, init_db, get_db
 from routes import routers as api_routers
+from routes import store
 
 app = FastAPI(
     title="SIGEA - Sistema Integrado de Gestão de Espaços Acadêmicos",
@@ -23,6 +24,11 @@ async def startup_event():
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
+        
+        init_db()
+        
+        db = next(get_db())
+        store.seed_default_user(db)
     except Exception as exc:
         raise RuntimeError("Falha ao conectar ao MySQL local. Verifique as credenciais e o banco de dados.") from exc
 
@@ -40,7 +46,6 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Verificar saúde da API"""
     return {
         "status": "online"
     }

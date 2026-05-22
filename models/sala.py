@@ -1,32 +1,28 @@
-from pydantic import BaseModel, Field
-from typing import Optional
-from enum import Enum
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Enum, Time
+from sqlalchemy.sql import func
+from enum import Enum as PyEnum
+from models.base import Base
 
 
-class StatusSala(str, Enum):
+class StatusSala(str, PyEnum):
     ATIVA = "ativa"
     MANUTENCAO = "manutencao"
+    INATIVA = "inativa"
 
 
-class SalaCreate(BaseModel):
-    nome: str = Field(..., min_length=1, max_length=50, description="Nome da sala")
-    capacidade: int = Field(..., gt=0, description="Capacidade de pessoas")
-    tipo: str = Field(..., max_length=50, description="Tipo de sala (ex: Laboratório, Sala de Aula)")
-    status: StatusSala = Field(default=StatusSala.ATIVA, description="Status da sala")
-    horario_inicio: str = Field(..., description="Horário de início (HH:MM)")
-    horario_fim: str = Field(..., description="Horário de fim (HH:MM)")
-    id_andar: int = Field(..., gt=0, description="ID do andar")
-
-
-class SalaResponse(BaseModel):
-    id_sala: int
-    nome: str
-    capacidade: int
-    tipo: str
-    status: StatusSala
-    horario_inicio: str
-    horario_fim: str
-    id_andar: int
-
-    class Config:
-        from_attributes = True
+class Sala(Base):
+    __tablename__ = "salas"
+    
+    id_sala = Column(Integer, primary_key=True, autoincrement=True)
+    nome = Column(String(50), nullable=False)
+    capacidade = Column(Integer, nullable=False)
+    tipo = Column(String(50), nullable=False)
+    status = Column(Enum(StatusSala), nullable=False, default=StatusSala.ATIVA)
+    horario_inicio = Column(Time, nullable=False)
+    horario_fim = Column(Time, nullable=False)
+    id_andar = Column(Integer, ForeignKey("andares.id_andar"), nullable=False)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+    
+    def __repr__(self):
+        return f"<Sala(id={self.id_sala}, nome='{self.nome}', capacidade={self.capacidade})>"

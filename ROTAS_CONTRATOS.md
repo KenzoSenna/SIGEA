@@ -3,7 +3,7 @@
 **Versão:** 1.0
 **Data:** 2026-05-15  
 **Base URL:** `http://localhost:8000`
-**Server URL** `https://api.sigea.fun/` 
+**Server URL** `https://api2.sigea.fun/` 
 
 ---
 

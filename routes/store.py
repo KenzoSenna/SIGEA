@@ -127,11 +127,19 @@ def verificar_conflito(
     id_sala: int,
     data_inicio: datetime,
     data_fim: datetime,
-    db: Session
+    db: Session,
+    exclude_id: int = None
 ) -> bool:
     """
     Verifica se existe conflito de horário
     na mesma sala.
+    
+    Args:
+        id_sala: ID da sala
+        data_inicio: Data e hora de início
+        data_fim: Data e hora de término
+        db: Sessão do banco de dados
+        exclude_id: ID do evento/reserva a excluir da verificação (opcional)
     """
 
     reservas = (
@@ -141,6 +149,9 @@ def verificar_conflito(
     )
 
     for reserva in reservas:
+
+        if exclude_id is not None and reserva.id_reserva == exclude_id:
+            continue
 
         conflito = (
             data_inicio < reserva.data_fim

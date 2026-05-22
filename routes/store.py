@@ -17,7 +17,6 @@ oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/login"
 )
 
-
 def verify_password(
     plain_password: str,
     hashed_password: str
@@ -130,6 +129,7 @@ def verificar_conflito(
     db: Session,
     exclude_id: int = None
 ) -> bool:
+    
     """
     Verifica se existe conflito de horário
     na mesma sala.

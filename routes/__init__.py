@@ -7,4 +7,4 @@ sistema_router = auth_router
 router_usuarios = usuarios_router
 
 # lista de routers para inclusão no FastAPI app
-routers = [auth_router, reservas_router, usuarios_router]
+routers = [auth_router, reservas_router, usuarios_router ]

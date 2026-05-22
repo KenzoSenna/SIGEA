@@ -3,7 +3,7 @@ from models.usuario import Usuario, TipoUsuario
 from models.sala import Sala, StatusSala
 from models.andar import Andar
 from models.evento import Evento
-from models.reserva import Reserva, TipoReserva
+from models.reserva import Reserva
 
 __all__ = [
     "Base",
@@ -14,5 +14,4 @@ __all__ = [
     "Andar",
     "Evento",
     "Reserva",
-    "TipoReserva",
 ]

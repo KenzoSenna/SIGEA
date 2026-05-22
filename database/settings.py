@@ -65,14 +65,12 @@ def _fix_usuarios_table():
     try:
         inspector = inspect(engine)
         
-        # Verifica se a tabela usuarios existe
         if 'usuarios' not in inspector.get_table_names():
             return  # Tabela não existe, será criada por create_all
         
-        # Verifica se tem a coluna antiga 'senha'
         columns = [col['name'] for col in inspector.get_columns('usuarios')]
         if 'senha' in columns and 'senha_hash' not in columns:
-            # Tabela tem estrutura antiga, dropar e recriar
+
             with engine.connect() as conn:
                 conn.execute(text("DROP TABLE usuarios"))
                 conn.commit()

@@ -3,13 +3,11 @@ from pydantic import BaseModel, model_validator, field_validator
 from typing import Union, Literal, List, Dict, Optional
 
 
-# ==================== AUTENTICAÇÃO ====================
 class LoginRequest(BaseModel):
     email: str
     senha: str
 
 
-# ==================== USUÁRIOS ====================
 class CriarUsuarioRequest(BaseModel):
     nome: str
     email: str
@@ -48,8 +46,6 @@ class UsuarioResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
-# ==================== SALAS ====================
 class SalaCreate(BaseModel):
     nome: str = field_validator('nome')(lambda v: v if len(v) >= 1 and len(v) <= 50 else None)
     capacidade: int
@@ -88,8 +84,6 @@ class SalaResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
-# ==================== EVENTOS ====================
 class EventoCreate(BaseModel):
     nome: str
     descricao: Optional[str] = None
@@ -127,7 +121,32 @@ class EventoResponse(BaseModel):
         from_attributes = True
 
 
-# ==================== RESERVAS ====================
+class UpdateEventoRequest(BaseModel):
+    nome: Optional[str] = None
+    descricao: Optional[str] = None
+    data: Optional[date] = None
+    hora_inicio: Optional[time] = None
+    hora_fim: Optional[time] = None
+    id_sala: Optional[int] = None
+    
+    @field_validator('nome')
+    @classmethod
+    def validar_nome(cls, v):
+        if v is not None:
+            if len(v.strip()) < 1 or len(v) > 100:
+                raise ValueError("Nome deve ter entre 1 e 100 caracteres")
+            return v.strip()
+        return v
+    
+    @field_validator('hora_fim')
+    @classmethod
+    def validar_horas(cls, v, info):
+        if v is not None and 'hora_inicio' in info.data and info.data['hora_inicio'] is not None:
+            if v <= info.data['hora_inicio']:
+                raise ValueError("hora_fim deve ser maior que hora_inicio")
+        return v
+
+
 class ReservaDiaria(BaseModel):
     data: date
     horario_inicio: time

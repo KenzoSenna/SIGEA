@@ -13,7 +13,6 @@ router = APIRouter(
 
 
 def converter_para_datetime(data, hora):
-    """Converte date e time para datetime"""
     if isinstance(hora, str):
         hora = datetime.strptime(hora, "%H:%M:%S").time()
     return datetime.combine(data, hora)

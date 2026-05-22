@@ -19,12 +19,10 @@ class Reserva(Base):
     descricao = Column(String(255), nullable=True)
     tipo_reserva = Column(Enum(TipoReserva), nullable=False)
     
-    # Para reservas diárias
     data = Column(Date, nullable=True)
     horario_inicio = Column(Time, nullable=True)
     horario_fim = Column(Time, nullable=True)
     
-    # Para reservas semestrais
     data_inicio = Column(Date, nullable=True)
     data_fim = Column(Date, nullable=True)
     dias_semana = Column(JSON, nullable=True)  # ["segunda", "terca", ...]

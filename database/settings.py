@@ -61,18 +61,5 @@ def get_db():
     finally:
         db.close()
 
-
-# Criar as tabelas (útil para desenvolvimento)
-# e para checar se já existem as tabelas ao iniciar a aplicação
-
 def init_db():
     Base.metadata.create_all(bind=engine)
-    future=True,
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()

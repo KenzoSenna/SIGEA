@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, time as dt_time
 from passlib.context import CryptContext
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import HTTPException, status
 from jose import JWTError, jwt
 from typing import Union
@@ -17,8 +17,15 @@ usuarios: dict = {}
 contador_usuario = 0
 emails_cadastrados = set()
 
+andares: dict = {}
+contador_andar = 0
+
+eventos: dict = {}
+contador_evento = 0
+inscricoes_eventos: list = [{"id_usuario": 1, "id_evento": 1}]  # Mock de teste
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+oauth2_scheme = HTTPBearer()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -46,7 +53,8 @@ def get_user_by_email(email: str):
 from fastapi import Depends
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(oauth2_scheme)):
+    token = credentials.credentials
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail={"sucesso": False, "mensagem": "Token inválido ou expirado"},
@@ -82,6 +90,40 @@ def _seed_default_user():
 
 
 _seed_default_user()
+
+
+def _seed_second_user():
+    global contador_usuario
+    contador_usuario += 1
+    usuarios[contador_usuario] = {
+        "id_usuario": contador_usuario,
+        "nome": "Aluno Teste",
+        "email": "aluno@email.com",
+        "senha_hash": get_password_hash(SENHA),
+        "tipo": "aluno",
+        "created_at": datetime.now().isoformat()
+    }
+    emails_cadastrados.add("aluno@email.com")
+
+_seed_second_user()
+
+
+def _seed_default_evento():
+    global contador_evento
+    contador_evento += 1
+    eventos[contador_evento] = {
+        "id_evento": contador_evento,
+        "titulo": "Evento de Teste (Inscrição)",
+        "descricao": "Testando a agenda do aluno",
+        "id_sala": 1,
+        "data": "2026-05-25",
+        "horario_inicio": "14:00",
+        "horario_fim": "16:00",
+        "tipo": "institucional",
+        "ministrante": "Prof. Roberto (Tecnologia)"
+    }
+
+_seed_default_evento()
 
 
 def _verificar_conflito(id_sala: int, dados_nova: Union[object, object], tipo: str) -> bool:

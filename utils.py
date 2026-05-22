@@ -9,8 +9,6 @@ def validate_user_role(user_role: int, required_role: int = 2) -> None:
             detail=f"Permissão insuficiente. Role necessária: {required_role}"
         )
 
-
-# Dados de exemplo para andares (MOCADO)
 ANDARES_MOCK = {
     1: {"id_andar": 1, "numero": 1, "descricao": "Primeiro andar"},
     2: {"id_andar": 2, "numero": 2, "descricao": "Segundo andar"},

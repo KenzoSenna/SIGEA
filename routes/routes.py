@@ -5,17 +5,13 @@ from utils import validate_user_role, validar_andar
 
 router = APIRouter()
 
-# Armazenamento em memória para salas (MOCADO)
 sala_db = {}
-# Parte da auth
 @router.post("/auth/login")
 async def login():
     return {
         "email": "usuario@email.com",
         "sessao": "autenticada"
     }
-
-# Parte dos users
 
 @router.post("/usuarios")
 async def create_usuario():

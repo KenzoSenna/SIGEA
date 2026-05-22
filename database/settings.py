@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import sessionmaker
+from models import Base
 
 
 class Settings(BaseSettings):
@@ -48,8 +49,25 @@ SessionLocal = sessionmaker(
     bind=engine,
     autoflush=False,
     autocommit=False,
-    future=True,
+    expire_on_commit=False,
 )
+
+
+def get_db():
+    """Dependency para injetar sessão do banco nas rotas"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# Criar as tabelas (útil para desenvolvimento)
+# e para checar se já existem as tabelas ao iniciar a aplicação
+
+def init_db():
+    Base.metadata.create_all(bind=engine)
+    future=True,
 
 
 def get_db():

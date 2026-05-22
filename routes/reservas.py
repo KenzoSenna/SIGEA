@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from routes.schemas import ReservaRequest
 from routes import store
+from utils import validate_user_role
 
 router = APIRouter(tags=["Reservas"])
 

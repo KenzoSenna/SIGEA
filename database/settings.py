@@ -1,6 +1,6 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from sqlalchemy import create_engine, text, inspect
+from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import sessionmaker
 from models import Base
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     )
 
     secret_key: str = Field("ChaveJwt", env="SECRET_KEY")
-    jwt_algorithm: str = Field("decoderAlg", env="JWT_ALGORITHM")
+    jwt_algorithm: str = Field("HS256", env="JWT_ALGORITHM")
     access_token_expire_minutes: int = Field(60, env="ACCESS_TOKEN_EXPIRE_MINUTES")
 
     @property
@@ -60,24 +60,5 @@ def get_db():
     finally:
         db.close()
 
-def _fix_usuarios_table():
-    """Valida e corrige a estrutura da tabela usuarios se necessário"""
-    try:
-        inspector = inspect(engine)
-        
-        if 'usuarios' not in inspector.get_table_names():
-            return  # Tabela não existe, será criada por create_all
-        
-        columns = [col['name'] for col in inspector.get_columns('usuarios')]
-        if 'senha' in columns and 'senha_hash' not in columns:
-
-            with engine.connect() as conn:
-                conn.execute(text("DROP TABLE usuarios"))
-                conn.commit()
-    except Exception as e:
-        print(f"Aviso: Não foi possível validar estrutura da tabela usuarios: {e}")
-
 def init_db():
-    """Cria as tabelas no banco se elas não existirem"""
-    _fix_usuarios_table()
     Base.metadata.create_all(bind=engine)

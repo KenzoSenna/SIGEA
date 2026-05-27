@@ -6,6 +6,7 @@ from models.base import Base
 class StatusSala(str, PyEnum):
     ATIVA = "ativa"
     MANUTENCAO = "manutencao"
+    INATIVA = "inativa"
 
 
 class Sala(Base):

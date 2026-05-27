@@ -1,9 +1,11 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
+from jose import jwt, JWTError
 from routes.schemas import LoginRequest
 from routes import store
-from database.settings import get_db
-from models import Usuario
+from database.settings import get_db, settings
+from models import Usuario, TokenBloqueado
 
 router = APIRouter(tags=["Auth"])
 
@@ -39,11 +41,29 @@ async def login(dados: LoginRequest, db: Session = Depends(get_db)):
     summary="Fazer logout"
 )
 async def logout(
+    token: str = Depends(store.oauth2_scheme),
     current_user: Usuario = Depends(store.get_current_user),
     db: Session = Depends(get_db)
 ):
 
     try:
+
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=[settings.jwt_algorithm]
+        )
+
+        jti = payload.get("jti")
+        exp = payload.get("exp")
+
+        token_bloqueado = TokenBloqueado(
+            jti=jti,
+            expira_em=datetime.fromtimestamp(exp, tz=timezone.utc).replace(tzinfo=None)
+        )
+
+        db.add(token_bloqueado)
+        db.commit()
 
         return {
             "sucesso": True,
@@ -53,8 +73,11 @@ async def logout(
             "ativo": 0
         }
 
-    except Exception as e:
+    except HTTPException:
+        raise
 
+    except Exception as e:
+        db.rollback()
         raise HTTPException(
             status_code=500,
             detail={

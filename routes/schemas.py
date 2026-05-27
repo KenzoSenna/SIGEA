@@ -1,4 +1,4 @@
-from datetime import date, time
+from datetime import date, time, datetime
 from pydantic import BaseModel, model_validator, field_validator
 from typing import Union, Literal, List, Dict, Optional
 
@@ -36,6 +36,36 @@ class CriarUsuarioRequest(BaseModel):
         return v
 
 
+class AtualizarUsuarioRequest(BaseModel):
+    nome: Optional[str] = None
+    email: Optional[str] = None
+    senha: Optional[str] = None
+    tipo: Optional[Literal["aluno", "professor", "coordenador"]] = None
+
+    @field_validator('nome')
+    @classmethod
+    def validar_nome(cls, v):
+        if v is not None and len(v.strip()) < 3:
+            raise ValueError("Nome deve ter pelo menos 3 caracteres")
+        return v.strip() if v else v
+
+    @field_validator('email')
+    @classmethod
+    def validar_email(cls, v):
+        if v is not None:
+            if '@' not in v or '.' not in v:
+                raise ValueError("Email inválido")
+            return v.lower().strip()
+        return v
+
+    @field_validator('senha')
+    @classmethod
+    def validar_senha(cls, v):
+        if v is not None and len(v) < 6:
+            raise ValueError("Senha deve ter pelo menos 6 caracteres")
+        return v
+
+
 class UsuarioResponse(BaseModel):
     id_usuario: int
     nome: str
@@ -47,21 +77,28 @@ class UsuarioResponse(BaseModel):
         from_attributes = True
 
 class SalaCreate(BaseModel):
-    nome: str = field_validator('nome')(lambda v: v if len(v) >= 1 and len(v) <= 50 else None)
+    nome: str
     capacidade: int
     tipo: str
     status: Literal["ativa", "manutencao", "inativa"] = "ativa"
     horario_inicio: time
     horario_fim: time
     id_andar: int
-    
+
+    @field_validator('nome')
+    @classmethod
+    def validar_nome(cls, v):
+        if not (1 <= len(v.strip()) <= 50):
+            raise ValueError("Nome deve ter entre 1 e 50 caracteres")
+        return v.strip()
+
     @field_validator('capacidade')
     @classmethod
     def validar_capacidade(cls, v):
         if v <= 0:
             raise ValueError("Capacidade deve ser maior que 0")
         return v
-    
+
     @field_validator('horario_fim')
     @classmethod
     def validar_horarios(cls, v, info):
@@ -236,34 +273,28 @@ class ReservaSemestral(BaseModel):
 
 class ReservaRequest(BaseModel):
     id_sala: int
-    id_disciplina: int
+    id_disciplina: Optional[int] = None
     descricao: str
-    tipo_reserva: Literal["diaria", "semestral"]
-    detalhes: Union[ReservaDiaria, ReservaSemestral]
+    data_inicio: datetime
+    data_fim: datetime
 
-    @model_validator(mode='after')
-    def verificar_tipo_detalhes(self):
-        if self.tipo_reserva == "diaria" and not isinstance(self.detalhes, ReservaDiaria):
-            raise ValueError("Para 'tipo_reserva' igual a 'diaria', insira os campos de ReservaDiaria.")
-        if self.tipo_reserva == "semestral" and not isinstance(self.detalhes, ReservaSemestral):
-            raise ValueError("Para 'tipo_reserva' igual a 'semestral', insira os campos de ReservaSemestral.")
-        return self
+    @field_validator('data_fim')
+    @classmethod
+    def validar_data_fim(cls, v, info):
+        if 'data_inicio' in info.data and v <= info.data['data_inicio']:
+            raise ValueError("data_fim deve ser maior que data_inicio")
+        return v
 
 
 class ReservaResponse(BaseModel):
     id_reserva: int
     id_sala: int
-    id_disciplina: int
+    id_disciplina: Optional[int] = None
     id_usuario: int
     descricao: Optional[str]
-    tipo_reserva: str
-    data: Optional[date] = None
-    horario_inicio: Optional[time] = None
-    horario_fim: Optional[time] = None
-    data_inicio: Optional[date] = None
-    data_fim: Optional[date] = None
-    dias_semana: Optional[List[str]] = None
-    horarios: Optional[dict] = None
+    status: str
+    data_inicio: datetime
+    data_fim: datetime
     created_at: Optional[str] = None
 
     class Config:

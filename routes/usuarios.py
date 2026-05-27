@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from routes.schemas import CriarUsuarioRequest, UsuarioResponse
+from routes.schemas import CriarUsuarioRequest, AtualizarUsuarioRequest, UsuarioResponse
 from routes import store
+from routes.store import get_current_user
 from database.settings import get_db
 from models import Usuario, TipoUsuario
 
@@ -91,8 +92,62 @@ async def obter_usuario(id_usuario: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail={"sucesso": False, "mensagem": str(e)})
 
 
+@router.put("/usuarios/{id_usuario}", summary="Atualizar um usuário")
+async def atualizar_usuario(
+    id_usuario: int,
+    dados: AtualizarUsuarioRequest,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
+        if not usuario:
+            raise HTTPException(status_code=404, detail={"sucesso": False, "mensagem": "Usuário não encontrado"})
+
+        if dados.email and dados.email != usuario.email:
+            email_existente = db.query(Usuario).filter(Usuario.email == dados.email).first()
+            if email_existente:
+                raise HTTPException(status_code=409, detail={"sucesso": False, "mensagem": "Email já cadastrado"})
+
+        if dados.nome is not None:
+            usuario.nome = dados.nome
+        if dados.email is not None:
+            usuario.email = dados.email
+        if dados.senha is not None:
+            usuario.senha_hash = store.get_password_hash(dados.senha)
+        if dados.tipo is not None:
+            usuario.tipo = dados.tipo
+
+        db.commit()
+        db.refresh(usuario)
+
+        return {
+            "sucesso": True,
+            "mensagem": "Usuário atualizado com sucesso",
+            "usuario": {
+                "id_usuario": usuario.id_usuario,
+                "nome": usuario.nome,
+                "email": usuario.email,
+                "tipo": usuario.tipo,
+                "created_at": usuario.created_at.isoformat() if usuario.created_at else None
+            }
+        }
+    except HTTPException:
+        raise
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail={"sucesso": False, "mensagem": "Erro ao atualizar usuário"})
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail={"sucesso": False, "mensagem": str(e)})
+
+
 @router.delete("/usuarios/{id_usuario}", summary="Deletar um usuário")
-async def deletar_usuario(id_usuario: int, db: Session = Depends(get_db)):
+async def deletar_usuario(
+    id_usuario: int,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     try:
         usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
         if not usuario:

@@ -1,21 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from datetime import datetime, time as time_type
+from datetime import datetime
 from routes.schemas import EventoCreate, UpdateEventoRequest, EventoResponse
-from routes.store import get_current_user, verificar_conflito
+from routes.store import get_current_user, verificar_conflito, converter_para_datetime
 from database.settings import get_db
 from models import Usuario, Evento, Sala
 
 router = APIRouter(
     tags=["Eventos"]
 )
-
-
-def converter_para_datetime(data, hora):
-    if isinstance(hora, str):
-        hora = datetime.strptime(hora, "%H:%M:%S").time()
-    return datetime.combine(data, hora)
 
 
 @router.post(
@@ -299,7 +293,8 @@ async def atualizar_evento(
             data_inicio=data_inicio,
             data_fim=data_fim,
             db=db,
-            exclude_id=id_evento
+            exclude_id=id_evento,
+            exclude_tipo="evento"
         )
 
         if conflito:

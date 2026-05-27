@@ -4,6 +4,7 @@ from models.sala import Sala, StatusSala
 from models.andar import Andar
 from models.evento import Evento
 from models.reserva import Reserva
+from models.token_bloqueado import TokenBloqueado
 
 __all__ = [
     "Base",
@@ -14,4 +15,5 @@ __all__ = [
     "Andar",
     "Evento",
     "Reserva",
+    "TokenBloqueado",
 ]

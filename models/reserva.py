@@ -4,7 +4,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Enum,
-    Text
+    Text,
 )
 
 from sqlalchemy.sql import func
@@ -62,7 +62,6 @@ class Reserva(Base):
 
     id_disciplina = Column(
         Integer,
-        ForeignKey("disciplina.id_disciplina", ondelete="SET NULL"),
         nullable=True
     )
 

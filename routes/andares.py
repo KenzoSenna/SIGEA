@@ -2,8 +2,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from routes.schemas import CriarAndarRequest, AtualizarAndarRequest, AndarResponse
+from routes.store import get_current_user
 from database.settings import get_db
-from models import Andar, Sala
+from models import Andar, Sala, Usuario
 
 router = APIRouter(
     tags=["Andares"]
@@ -17,6 +18,7 @@ router = APIRouter(
 )
 async def criar_andar(
     dados: CriarAndarRequest,
+    current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
 
@@ -200,6 +202,7 @@ async def obter_andar(
 async def atualizar_andar(
     id_andar: int,
     dados: AtualizarAndarRequest,
+    current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
 
@@ -289,6 +292,7 @@ async def atualizar_andar(
 )
 async def deletar_andar(
     id_andar: int,
+    current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
 

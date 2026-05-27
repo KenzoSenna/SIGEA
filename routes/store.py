@@ -1,11 +1,18 @@
-from datetime import datetime, timedelta
+import uuid
+from datetime import date, datetime, time as time_type, timedelta
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import HTTPException, status, Depends
 from jose import JWTError, jwt
 from database.settings import settings, SessionLocal, get_db
-from models import Usuario, Reserva
+from models import Usuario, Reserva, Evento, TokenBloqueado
 from sqlalchemy.orm import Session
+
+
+def converter_para_datetime(data: date, hora) -> datetime:
+    if isinstance(hora, str):
+        hora = datetime.strptime(hora, "%H:%M:%S").time()
+    return datetime.combine(data, hora)
 
 
 pwd_context = CryptContext(
@@ -45,7 +52,7 @@ def create_access_token(
         )
     )
 
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "jti": str(uuid.uuid4())})
 
     return jwt.encode(
         to_encode,
@@ -101,13 +108,23 @@ def get_current_user(
         )
 
         user_id = payload.get("sub")
+        jti = payload.get("jti")
 
-        if user_id is None:
+        if user_id is None or jti is None:
             raise credentials_exception
 
         user_id = int(user_id)
 
     except (JWTError, ValueError):
+        raise credentials_exception
+
+    token_revogado = (
+        db.query(TokenBloqueado)
+        .filter(TokenBloqueado.jti == jti)
+        .first()
+    )
+
+    if token_revogado:
         raise credentials_exception
 
     usuario = (
@@ -127,20 +144,9 @@ def verificar_conflito(
     data_inicio: datetime,
     data_fim: datetime,
     db: Session,
-    exclude_id: int = None
+    exclude_id: int = None,
+    exclude_tipo: str = "reserva"
 ) -> bool:
-    
-    """
-    Verifica se existe conflito de horário
-    na mesma sala.
-    
-    Args:
-        id_sala: ID da sala
-        data_inicio: Data e hora de início
-        data_fim: Data e hora de término
-        db: Sessão do banco de dados
-        exclude_id: ID do evento/reserva a excluir da verificação (opcional)
-    """
 
     reservas = (
         db.query(Reserva)
@@ -150,16 +156,24 @@ def verificar_conflito(
 
     for reserva in reservas:
 
-        if exclude_id is not None and reserva.id_reserva == exclude_id:
+        if exclude_tipo == "reserva" and exclude_id is not None and reserva.id_reserva == exclude_id:
             continue
 
-        conflito = (
-            data_inicio < reserva.data_fim
-            and
-            data_fim > reserva.data_inicio
-        )
+        if data_inicio < reserva.data_fim and data_fim > reserva.data_inicio:
+            return True
 
-        if conflito:
+    eventos = (
+        db.query(Evento)
+        .filter(Evento.id_sala == id_sala)
+        .all()
+    )
+
+    for evento in eventos:
+
+        if exclude_tipo == "evento" and exclude_id is not None and evento.id_evento == exclude_id:
+            continue
+
+        if data_inicio < evento.data_fim and data_fim > evento.data_inicio:
             return True
 
     return False

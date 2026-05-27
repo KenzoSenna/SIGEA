@@ -195,6 +195,12 @@ async def atualizar_evento(
             data_inicio = converter_para_datetime(evento.data_inicio.date(), hora_i)
             data_fim = converter_para_datetime(evento.data_fim.date(), hora_f)
 
+        if data_inicio >= data_fim:
+            raise HTTPException(
+                status_code=422,
+                detail={"sucesso": False, "mensagem": "hora_fim deve ser maior que hora_inicio"}
+            )
+
         id_sala = dados.id_sala or evento.id_sala
 
         if verificar_conflito(

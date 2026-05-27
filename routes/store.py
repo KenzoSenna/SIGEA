@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime, time as time_type, timedelta
+from datetime import date, datetime, timedelta
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import HTTPException, status, Depends

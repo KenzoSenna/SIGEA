@@ -3,7 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
-from database.settings import engine, init_db, get_db
+from database.settings import engine, init_db, SessionLocal
 from routes import routers as api_routers
 from routes import store
 
@@ -65,9 +65,12 @@ async def startup_event():
             connection.execute(text("SELECT 1"))
         
         init_db()
-        
-        db = next(get_db())
-        store.seed_default_user(db)
+
+        db = SessionLocal()
+        try:
+            store.seed_default_user(db)
+        finally:
+            db.close()
     except Exception as exc:
         raise RuntimeError("Falha ao conectar ao MySQL local. Verifique as credenciais e o banco de dados.") from exc
 

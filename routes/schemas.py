@@ -1,6 +1,6 @@
 from datetime import date, time, datetime
-from pydantic import BaseModel, model_validator, field_validator
-from typing import Union, Literal, List, Dict, Optional
+from pydantic import BaseModel, field_validator
+from typing import Literal, List, Dict, Optional
 
 
 class LoginRequest(BaseModel):
@@ -183,9 +183,10 @@ class EventoCreate(BaseModel):
     @field_validator('nome')
     @classmethod
     def validar_nome(cls, v):
-        if len(v.strip()) < 1 or len(v) > 100:
+        v = v.strip()
+        if not (1 <= len(v) <= 100):
             raise ValueError("Nome deve ter entre 1 e 100 caracteres")
-        return v.strip()
+        return v
     
     @field_validator('hora_fim')
     @classmethod
@@ -234,41 +235,6 @@ class UpdateEventoRequest(BaseModel):
                 raise ValueError("hora_fim deve ser maior que hora_inicio")
         return v
 
-
-class ReservaDiaria(BaseModel):
-    data: date
-    horario_inicio: time
-    horario_fim: time
-    
-    @field_validator('horario_fim')
-    @classmethod
-    def validar_horario_fim(cls, v, info):
-        if 'horario_inicio' in info.data and v <= info.data['horario_inicio']:
-            raise ValueError("horario_fim deve ser maior que horario_inicio")
-        return v
-
-
-class ReservaSemestral(BaseModel):
-    data_inicio: date
-    data_fim: date
-    dias_semana: List[Literal["segunda","terca","quarta","quinta","sexta","sabado","domingo"]]
-    horarios: Dict[Literal["segunda","terca","quarta","quinta","sexta","sabado","domingo"], 
-                   Dict[Literal["inicio", "fim"], time]]
-    
-    @field_validator('data_fim')
-    @classmethod
-    def validar_data_fim(cls, v, info):
-        if 'data_inicio' in info.data and v <= info.data['data_inicio']:
-            raise ValueError("data_fim deve ser maior que data_inicio")
-        return v
-    
-    @field_validator('horarios')
-    @classmethod
-    def validar_horarios(cls, v, info):
-        for dia, horarios in v.items():
-            if horarios['fim'] <= horarios['inicio']:
-                raise ValueError(f"horario_fim deve ser maior que horario_inicio para {dia}")
-        return v
 
 
 class ReservaRequest(BaseModel):

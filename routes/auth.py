@@ -76,12 +76,9 @@ async def logout(
     except HTTPException:
         raise
 
-    except Exception as e:
+    except Exception:
         db.rollback()
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )

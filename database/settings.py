@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         return URL.create(
-            drivername=f"mysql+pymysql",
+            drivername="mysql+pymysql",
             username=self.db_user,
             password=self.db_password,
             host=self.db_host,

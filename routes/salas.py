@@ -2,13 +2,26 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from routes.schemas import SalaCreate, SalaResponse
-from routes.store import get_current_user
+from routes.store import get_current_user, tratar_integrity_error
 from database.settings import get_db
 from models import Sala, Andar, Usuario
 
 router = APIRouter(
     tags=["Salas"]
 )
+
+
+def _serializar_sala(s: Sala) -> dict:
+    return {
+        "id_sala": s.id_sala,
+        "nome": s.nome,
+        "capacidade": s.capacidade,
+        "tipo": s.tipo,
+        "status": s.status,
+        "horario_inicio": str(s.horario_inicio),
+        "horario_fim": str(s.horario_fim),
+        "id_andar": s.id_andar,
+    }
 
 
 @router.post(
@@ -24,19 +37,12 @@ async def criar_sala(
 
     try:
 
-        andar = (
-            db.query(Andar)
-            .filter(Andar.id_andar == dados.id_andar)
-            .first()
-        )
+        andar = db.query(Andar).filter(Andar.id_andar == dados.id_andar).first()
 
         if not andar:
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Andar não encontrado"
-                }
+                detail={"sucesso": False, "mensagem": f"Andar {dados.id_andar} não encontrado"}
             )
 
         sala_existente = (
@@ -50,7 +56,7 @@ async def criar_sala(
                 status_code=409,
                 detail={
                     "sucesso": False,
-                    "mensagem": "Já existe uma sala com este nome neste andar"
+                    "mensagem": f"Sala '{dados.nome}' já existe no andar {andar.numero}"
                 }
             )
 
@@ -65,47 +71,30 @@ async def criar_sala(
         )
 
         db.add(nova_sala)
-
         db.commit()
-
         db.refresh(nova_sala)
 
         return {
             "sucesso": True,
             "mensagem": "Sala criada com sucesso",
-            "sala": {
-                "id_sala": nova_sala.id_sala,
-                "nome": nova_sala.nome,
-                "capacidade": nova_sala.capacidade,
-                "tipo": nova_sala.tipo,
-                "status": nova_sala.status,
-                "horario_inicio": str(nova_sala.horario_inicio),
-                "horario_fim": str(nova_sala.horario_fim),
-                "id_andar": nova_sala.id_andar,
-            }
+            "sala": _serializar_sala(nova_sala)
         }
 
     except HTTPException:
         raise
 
-    except IntegrityError:
+    except IntegrityError as e:
         db.rollback()
         raise HTTPException(
             status_code=409,
-            detail={
-                "sucesso": False,
-                "mensagem": "Erro ao criar sala - dados duplicados ou inválidos"
-            }
+            detail={"sucesso": False, "mensagem": tratar_integrity_error(e)}
         )
 
-    except Exception as e:
+    except Exception:
         db.rollback()
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -121,34 +110,16 @@ async def listar_salas(
 
         salas = db.query(Sala).all()
 
-        salas_list = [
-            {
-                "id_sala": s.id_sala,
-                "nome": s.nome,
-                "capacidade": s.capacidade,
-                "tipo": s.tipo,
-                "status": s.status,
-                "horario_inicio": str(s.horario_inicio),
-                "horario_fim": str(s.horario_fim),
-                "id_andar": s.id_andar,
-            }
-            for s in salas
-        ]
-
         return {
             "sucesso": True,
             "total": len(salas),
-            "salas": salas_list
+            "salas": [_serializar_sala(s) for s in salas]
         }
 
-    except Exception as e:
-
+    except Exception:
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -163,47 +134,23 @@ async def obter_sala(
 
     try:
 
-        sala = (
-            db.query(Sala)
-            .filter(Sala.id_sala == id_sala)
-            .first()
-        )
+        sala = db.query(Sala).filter(Sala.id_sala == id_sala).first()
 
         if not sala:
-
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Sala não encontrada"
-                }
+                detail={"sucesso": False, "mensagem": f"Sala {id_sala} não encontrada"}
             )
 
-        return {
-            "sucesso": True,
-            "sala": {
-                "id_sala": sala.id_sala,
-                "nome": sala.nome,
-                "capacidade": sala.capacidade,
-                "tipo": sala.tipo,
-                "status": sala.status,
-                "horario_inicio": str(sala.horario_inicio),
-                "horario_fim": str(sala.horario_fim),
-                "id_andar": sala.id_andar,
-            }
-        }
+        return {"sucesso": True, "sala": _serializar_sala(sala)}
 
     except HTTPException:
         raise
 
-    except Exception as e:
-
+    except Exception:
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -220,37 +167,20 @@ async def atualizar_sala(
 
     try:
 
-        sala = (
-            db.query(Sala)
-            .filter(Sala.id_sala == id_sala)
-            .first()
-        )
+        sala = db.query(Sala).filter(Sala.id_sala == id_sala).first()
 
         if not sala:
-
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Sala não encontrada"
-                }
+                detail={"sucesso": False, "mensagem": f"Sala {id_sala} não encontrada"}
             )
 
         if dados.id_andar != sala.id_andar:
-
-            andar = (
-                db.query(Andar)
-                .filter(Andar.id_andar == dados.id_andar)
-                .first()
-            )
-
+            andar = db.query(Andar).filter(Andar.id_andar == dados.id_andar).first()
             if not andar:
                 raise HTTPException(
                     status_code=404,
-                    detail={
-                        "sucesso": False,
-                        "mensagem": "Andar não encontrado"
-                    }
+                    detail={"sucesso": False, "mensagem": f"Andar {dados.id_andar} não encontrado"}
                 )
 
         nome_duplicado = (
@@ -268,7 +198,7 @@ async def atualizar_sala(
                 status_code=409,
                 detail={
                     "sucesso": False,
-                    "mensagem": "Já existe uma sala com este nome neste andar"
+                    "mensagem": f"Sala '{dados.nome}' já existe neste andar"
                 }
             )
 
@@ -281,47 +211,29 @@ async def atualizar_sala(
         sala.id_andar = dados.id_andar
 
         db.commit()
-
         db.refresh(sala)
 
         return {
             "sucesso": True,
             "mensagem": "Sala atualizada com sucesso",
-            "sala": {
-                "id_sala": sala.id_sala,
-                "nome": sala.nome,
-                "capacidade": sala.capacidade,
-                "tipo": sala.tipo,
-                "status": sala.status,
-                "horario_inicio": str(sala.horario_inicio),
-                "horario_fim": str(sala.horario_fim),
-                "id_andar": sala.id_andar,
-            }
+            "sala": _serializar_sala(sala)
         }
 
     except HTTPException:
         raise
 
-    except IntegrityError:
+    except IntegrityError as e:
         db.rollback()
         raise HTTPException(
             status_code=409,
-            detail={
-                "sucesso": False,
-                "mensagem": "Erro ao atualizar sala - dados duplicados ou inválidos"
-            }
+            detail={"sucesso": False, "mensagem": tratar_integrity_error(e)}
         )
 
-    except Exception as e:
-
+    except Exception:
         db.rollback()
-
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -337,20 +249,12 @@ async def deletar_sala(
 
     try:
 
-        sala = (
-            db.query(Sala)
-            .filter(Sala.id_sala == id_sala)
-            .first()
-        )
+        sala = db.query(Sala).filter(Sala.id_sala == id_sala).first()
 
         if not sala:
-
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Sala não encontrada"
-                }
+                detail={"sucesso": False, "mensagem": f"Sala {id_sala} não encontrada"}
             )
 
         sala_data = {
@@ -360,7 +264,6 @@ async def deletar_sala(
         }
 
         db.delete(sala)
-
         db.commit()
 
         return {
@@ -372,14 +275,9 @@ async def deletar_sala(
     except HTTPException:
         raise
 
-    except Exception as e:
-
+    except Exception:
         db.rollback()
-
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )

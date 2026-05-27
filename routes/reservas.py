@@ -1,21 +1,27 @@
 from fastapi import APIRouter, Depends, HTTPException
-
 from sqlalchemy.orm import Session
-
 from routes.schemas import ReservaRequest
-
-from routes.store import (
-    get_current_user,
-    verificar_conflito
-)
-
+from routes.store import get_current_user, verificar_conflito
 from database.settings import get_db
-
 from models import Usuario, Reserva, Sala
 
 router = APIRouter(
     tags=["Reservas"]
 )
+
+
+def _serializar_reserva(r: Reserva) -> dict:
+    return {
+        "id_reserva": r.id_reserva,
+        "id_sala": r.id_sala,
+        "id_usuario": r.id_usuario,
+        "id_disciplina": r.id_disciplina,
+        "descricao": r.descricao,
+        "status": r.status,
+        "data_inicio": str(r.data_inicio),
+        "data_fim": str(r.data_fim),
+        "created_at": str(r.created_at),
+    }
 
 
 @router.post(
@@ -31,35 +37,23 @@ async def create_reserva(
 
     try:
 
-        sala = (
-            db.query(Sala)
-            .filter(Sala.id_sala == dados.id_sala)
-            .first()
-        )
+        sala = db.query(Sala).filter(Sala.id_sala == dados.id_sala).first()
 
         if not sala:
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Sala não encontrada"
-                }
+                detail={"sucesso": False, "mensagem": f"Sala {dados.id_sala} não encontrada"}
             )
 
-        conflito = verificar_conflito(
+        if verificar_conflito(
             id_sala=dados.id_sala,
             data_inicio=dados.data_inicio,
             data_fim=dados.data_fim,
             db=db
-        )
-
-        if conflito:
+        ):
             raise HTTPException(
                 status_code=409,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Horário indisponível nesta sala"
-                }
+                detail={"sucesso": False, "mensagem": f"Sala {dados.id_sala} já está ocupada neste horário"}
             )
 
         reserva = Reserva(
@@ -72,41 +66,24 @@ async def create_reserva(
         )
 
         db.add(reserva)
-
         db.commit()
-
         db.refresh(reserva)
 
         return {
             "sucesso": True,
             "mensagem": "Reserva realizada com sucesso",
             "id_reserva": reserva.id_reserva,
-            "reserva": {
-                "id_reserva": reserva.id_reserva,
-                "id_sala": reserva.id_sala,
-                "id_usuario": reserva.id_usuario,
-                "id_disciplina": reserva.id_disciplina,
-                "descricao": reserva.descricao,
-                "status": reserva.status,
-                "data_inicio": str(reserva.data_inicio),
-                "data_fim": str(reserva.data_fim),
-                "created_at": str(reserva.created_at),
-            }
+            "reserva": _serializar_reserva(reserva)
         }
 
     except HTTPException:
         raise
 
-    except Exception as e:
-
+    except Exception:
         db.rollback()
-
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -123,36 +100,16 @@ async def listar_reservas(
 
         reservas = db.query(Reserva).all()
 
-        reservas_list = []
-
-        for r in reservas:
-
-            reservas_list.append({
-                "id_reserva": r.id_reserva,
-                "id_sala": r.id_sala,
-                "id_usuario": r.id_usuario,
-                "id_disciplina": r.id_disciplina,
-                "descricao": r.descricao,
-                "status": r.status,
-                "data_inicio": str(r.data_inicio),
-                "data_fim": str(r.data_fim),
-                "created_at": str(r.created_at),
-            })
-
         return {
             "sucesso": True,
             "total": len(reservas),
-            "reservas": reservas_list
+            "reservas": [_serializar_reserva(r) for r in reservas]
         }
 
-    except Exception as e:
-
+    except Exception:
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -168,48 +125,23 @@ async def obter_reserva(
 
     try:
 
-        reserva = (
-            db.query(Reserva)
-            .filter(Reserva.id_reserva == id_reserva)
-            .first()
-        )
+        reserva = db.query(Reserva).filter(Reserva.id_reserva == id_reserva).first()
 
         if not reserva:
-
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Reserva não encontrada"
-                }
+                detail={"sucesso": False, "mensagem": f"Reserva {id_reserva} não encontrada"}
             )
 
-        return {
-            "sucesso": True,
-            "reserva": {
-                "id_reserva": reserva.id_reserva,
-                "id_sala": reserva.id_sala,
-                "id_usuario": reserva.id_usuario,
-                "id_disciplina": reserva.id_disciplina,
-                "descricao": reserva.descricao,
-                "status": reserva.status,
-                "data_inicio": str(reserva.data_inicio),
-                "data_fim": str(reserva.data_fim),
-                "created_at": str(reserva.created_at),
-            }
-        }
+        return {"sucesso": True, "reserva": _serializar_reserva(reserva)}
 
     except HTTPException:
         raise
 
-    except Exception as e:
-
+    except Exception:
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -225,20 +157,12 @@ async def cancelar_reserva(
 
     try:
 
-        reserva = (
-            db.query(Reserva)
-            .filter(Reserva.id_reserva == id_reserva)
-            .first()
-        )
+        reserva = db.query(Reserva).filter(Reserva.id_reserva == id_reserva).first()
 
         if not reserva:
-
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Reserva não encontrada"
-                }
+                detail={"sucesso": False, "mensagem": f"Reserva {id_reserva} não encontrada"}
             )
 
         reserva_data = {
@@ -248,7 +172,6 @@ async def cancelar_reserva(
         }
 
         db.delete(reserva)
-
         db.commit()
 
         return {
@@ -260,14 +183,9 @@ async def cancelar_reserva(
     except HTTPException:
         raise
 
-    except Exception as e:
-
+    except Exception:
         db.rollback()
-
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )

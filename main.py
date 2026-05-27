@@ -1,5 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from database.settings import engine, init_db, get_db
 from routes import routers as api_routers
@@ -18,6 +20,43 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    detail = exc.detail
+    content = detail if isinstance(detail, dict) else {"sucesso": False, "mensagem": str(detail)}
+    return JSONResponse(
+        status_code=exc.status_code,
+        headers=getattr(exc, "headers", None),
+        content=content,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    erros = []
+    for error in exc.errors():
+        loc = [str(l) for l in error["loc"] if l not in ("body", "query", "path", "header")]
+        campo = ".".join(loc) if loc else None
+        msg = error["msg"].replace("Value error, ", "")
+        erros.append(f"'{campo}': {msg}" if campo else msg)
+    return JSONResponse(
+        status_code=422,
+        content={
+            "sucesso": False,
+            "mensagem": "Dados de entrada inválidos",
+            "erros": erros,
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"sucesso": False, "mensagem": "Erro interno do servidor"},
+    )
+
 
 @app.on_event("startup")
 async def startup_event():

@@ -3,13 +3,27 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 from routes.schemas import EventoCreate, UpdateEventoRequest, EventoResponse
-from routes.store import get_current_user, verificar_conflito, converter_para_datetime
+from routes.store import get_current_user, verificar_conflito, converter_para_datetime, tratar_integrity_error
 from database.settings import get_db
 from models import Usuario, Evento, Sala
 
 router = APIRouter(
     tags=["Eventos"]
 )
+
+
+def _serializar_evento(e: Evento) -> dict:
+    return {
+        "id_evento": e.id_evento,
+        "nome": e.titulo,
+        "descricao": e.descricao,
+        "data": str(e.data_inicio.date()),
+        "hora_inicio": str(e.data_inicio.time()),
+        "hora_fim": str(e.data_fim.time()),
+        "id_sala": e.id_sala,
+        "id_usuario": e.id_usuario,
+        "created_at": e.created_at.isoformat() if e.created_at else None
+    }
 
 
 @router.post(
@@ -25,38 +39,21 @@ async def criar_evento(
 
     try:
 
-        sala = (
-            db.query(Sala)
-            .filter(Sala.id_sala == dados.id_sala)
-            .first()
-        )
+        sala = db.query(Sala).filter(Sala.id_sala == dados.id_sala).first()
 
         if not sala:
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Sala não encontrada"
-                }
+                detail={"sucesso": False, "mensagem": f"Sala {dados.id_sala} não encontrada"}
             )
 
         data_inicio = converter_para_datetime(dados.data, dados.hora_inicio)
         data_fim = converter_para_datetime(dados.data, dados.hora_fim)
 
-        conflito = verificar_conflito(
-            id_sala=dados.id_sala,
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            db=db
-        )
-
-        if conflito:
+        if verificar_conflito(id_sala=dados.id_sala, data_inicio=data_inicio, data_fim=data_fim, db=db):
             raise HTTPException(
                 status_code=409,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Horário indisponível nesta sala"
-                }
+                detail={"sucesso": False, "mensagem": f"Sala {dados.id_sala} já está ocupada neste horário"}
             )
 
         novo_evento = Evento(
@@ -69,49 +66,31 @@ async def criar_evento(
         )
 
         db.add(novo_evento)
-
         db.commit()
-
         db.refresh(novo_evento)
 
         return {
             "sucesso": True,
             "mensagem": "Evento criado com sucesso",
             "id_evento": novo_evento.id_evento,
-            "evento": {
-                "id_evento": novo_evento.id_evento,
-                "nome": novo_evento.titulo,
-                "descricao": novo_evento.descricao,
-                "data": str(novo_evento.data_inicio.date()),
-                "hora_inicio": str(novo_evento.data_inicio.time()),
-                "hora_fim": str(novo_evento.data_fim.time()),
-                "id_sala": novo_evento.id_sala,
-                "id_usuario": novo_evento.id_usuario,
-                "created_at": novo_evento.created_at.isoformat() if novo_evento.created_at else None
-            }
+            "evento": _serializar_evento(novo_evento)
         }
 
     except HTTPException:
         raise
 
-    except IntegrityError:
+    except IntegrityError as e:
         db.rollback()
         raise HTTPException(
             status_code=409,
-            detail={
-                "sucesso": False,
-                "mensagem": "Erro ao criar evento - dados duplicados ou inválidos"
-            }
+            detail={"sucesso": False, "mensagem": tratar_integrity_error(e)}
         )
 
-    except Exception as e:
+    except Exception:
         db.rollback()
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -128,36 +107,16 @@ async def listar_eventos(
 
         eventos = db.query(Evento).all()
 
-        eventos_list = []
-
-        for e in eventos:
-
-            eventos_list.append({
-                "id_evento": e.id_evento,
-                "nome": e.titulo,
-                "descricao": e.descricao,
-                "data": str(e.data_inicio.date()),
-                "hora_inicio": str(e.data_inicio.time()),
-                "hora_fim": str(e.data_fim.time()),
-                "id_sala": e.id_sala,
-                "id_usuario": e.id_usuario,
-                "created_at": e.created_at.isoformat() if e.created_at else None
-            })
-
         return {
             "sucesso": True,
             "total": len(eventos),
-            "eventos": eventos_list
+            "eventos": [_serializar_evento(e) for e in eventos]
         }
 
-    except Exception as e:
-
+    except Exception:
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -173,48 +132,23 @@ async def obter_evento(
 
     try:
 
-        evento = (
-            db.query(Evento)
-            .filter(Evento.id_evento == id_evento)
-            .first()
-        )
+        evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
 
         if not evento:
-
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Evento não encontrado"
-                }
+                detail={"sucesso": False, "mensagem": f"Evento {id_evento} não encontrado"}
             )
 
-        return {
-            "sucesso": True,
-            "evento": {
-                "id_evento": evento.id_evento,
-                "nome": evento.titulo,
-                "descricao": evento.descricao,
-                "data": str(evento.data_inicio.date()),
-                "hora_inicio": str(evento.data_inicio.time()),
-                "hora_fim": str(evento.data_fim.time()),
-                "id_sala": evento.id_sala,
-                "id_usuario": evento.id_usuario,
-                "created_at": evento.created_at.isoformat() if evento.created_at else None
-            }
-        }
+        return {"sucesso": True, "evento": _serializar_evento(evento)}
 
     except HTTPException:
         raise
 
-    except Exception as e:
-
+    except Exception:
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -231,79 +165,49 @@ async def atualizar_evento(
 
     try:
 
-        evento = (
-            db.query(Evento)
-            .filter(Evento.id_evento == id_evento)
-            .first()
-        )
+        evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
 
         if not evento:
-
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Evento não encontrado"
-                }
+                detail={"sucesso": False, "mensagem": f"Evento {id_evento} não encontrado"}
             )
 
         if dados.id_sala and dados.id_sala != evento.id_sala:
-
-            sala = (
-                db.query(Sala)
-                .filter(Sala.id_sala == dados.id_sala)
-                .first()
-            )
-
+            sala = db.query(Sala).filter(Sala.id_sala == dados.id_sala).first()
             if not sala:
                 raise HTTPException(
                     status_code=404,
-                    detail={
-                        "sucesso": False,
-                        "mensagem": "Sala não encontrada"
-                    }
+                    detail={"sucesso": False, "mensagem": f"Sala {dados.id_sala} não encontrada"}
                 )
 
         data_inicio = evento.data_inicio
         data_fim = evento.data_fim
 
         if dados.data:
-            if dados.hora_inicio:
-                data_inicio = converter_para_datetime(dados.data, dados.hora_inicio)
-            else:
-                data_inicio = converter_para_datetime(dados.data, evento.data_inicio.time())
-
-            if dados.hora_fim:
-                data_fim = converter_para_datetime(dados.data, dados.hora_fim)
-            else:
-                data_fim = converter_para_datetime(dados.data, evento.data_fim.time())
-
+            hora_i = dados.hora_inicio or evento.data_inicio.time()
+            hora_f = dados.hora_fim or evento.data_fim.time()
+            data_inicio = converter_para_datetime(dados.data, hora_i)
+            data_fim = converter_para_datetime(dados.data, hora_f)
         elif dados.hora_inicio or dados.hora_fim:
-
-            hora_inicio = dados.hora_inicio or evento.data_inicio.time()
-            hora_fim = dados.hora_fim or evento.data_fim.time()
-
-            data_inicio = converter_para_datetime(evento.data_inicio.date(), hora_inicio)
-            data_fim = converter_para_datetime(evento.data_fim.date(), hora_fim)
+            hora_i = dados.hora_inicio or evento.data_inicio.time()
+            hora_f = dados.hora_fim or evento.data_fim.time()
+            data_inicio = converter_para_datetime(evento.data_inicio.date(), hora_i)
+            data_fim = converter_para_datetime(evento.data_fim.date(), hora_f)
 
         id_sala = dados.id_sala or evento.id_sala
 
-        conflito = verificar_conflito(
+        if verificar_conflito(
             id_sala=id_sala,
             data_inicio=data_inicio,
             data_fim=data_fim,
             db=db,
             exclude_id=id_evento,
             exclude_tipo="evento"
-        )
-
-        if conflito:
+        ):
             raise HTTPException(
                 status_code=409,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Horário indisponível nesta sala"
-                }
+                detail={"sucesso": False, "mensagem": f"Sala {id_sala} já está ocupada neste horário"}
             )
 
         evento.titulo = dados.nome or evento.titulo
@@ -313,38 +217,22 @@ async def atualizar_evento(
         evento.id_sala = id_sala
 
         db.commit()
-
         db.refresh(evento)
 
         return {
             "sucesso": True,
             "mensagem": "Evento atualizado com sucesso",
-            "evento": {
-                "id_evento": evento.id_evento,
-                "nome": evento.titulo,
-                "descricao": evento.descricao,
-                "data": str(evento.data_inicio.date()),
-                "hora_inicio": str(evento.data_inicio.time()),
-                "hora_fim": str(evento.data_fim.time()),
-                "id_sala": evento.id_sala,
-                "id_usuario": evento.id_usuario,
-                "created_at": evento.created_at.isoformat() if evento.created_at else None
-            }
+            "evento": _serializar_evento(evento)
         }
 
     except HTTPException:
         raise
 
-    except Exception as e:
-
+    except Exception:
         db.rollback()
-
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -360,20 +248,12 @@ async def deletar_evento(
 
     try:
 
-        evento = (
-            db.query(Evento)
-            .filter(Evento.id_evento == id_evento)
-            .first()
-        )
+        evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
 
         if not evento:
-
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Evento não encontrado"
-                }
+                detail={"sucesso": False, "mensagem": f"Evento {id_evento} não encontrado"}
             )
 
         evento_data = {
@@ -383,7 +263,6 @@ async def deletar_evento(
         }
 
         db.delete(evento)
-
         db.commit()
 
         return {
@@ -395,14 +274,9 @@ async def deletar_evento(
     except HTTPException:
         raise
 
-    except Exception as e:
-
+    except Exception:
         db.rollback()
-
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )

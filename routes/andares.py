@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from routes.schemas import CriarAndarRequest, AtualizarAndarRequest, AndarResponse
-from routes.store import get_current_user
+from routes.store import get_current_user, tratar_integrity_error
 from database.settings import get_db
 from models import Andar, Sala, Usuario
 
@@ -35,7 +35,7 @@ async def criar_andar(
                 status_code=409,
                 detail={
                     "sucesso": False,
-                    "mensagem": "Andar com este número já existe"
+                    "mensagem": f"Andar {dados.numero} já existe"
                 }
             )
 
@@ -46,9 +46,7 @@ async def criar_andar(
         )
 
         db.add(novo_andar)
-
         db.commit()
-
         db.refresh(novo_andar)
 
         return {
@@ -66,24 +64,18 @@ async def criar_andar(
     except HTTPException:
         raise
 
-    except IntegrityError:
+    except IntegrityError as e:
         db.rollback()
         raise HTTPException(
             status_code=409,
-            detail={
-                "sucesso": False,
-                "mensagem": "Erro ao criar andar - dados duplicados ou inválidos"
-            }
+            detail={"sucesso": False, "mensagem": tratar_integrity_error(e)}
         )
 
-    except Exception as e:
+    except Exception:
         db.rollback()
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -99,16 +91,15 @@ async def listar_andares(
 
         andares = db.query(Andar).all()
 
-        andares_list = []
-
-        for a in andares:
-
-            andares_list.append({
+        andares_list = [
+            {
                 "id_andar": a.id_andar,
                 "numero": a.numero,
                 "pos_x": a.pos_x,
                 "pos_y": a.pos_y
-            })
+            }
+            for a in andares
+        ]
 
         return {
             "sucesso": True,
@@ -116,14 +107,10 @@ async def listar_andares(
             "andares": andares_list
         }
 
-    except Exception as e:
-
+    except Exception:
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -145,13 +132,9 @@ async def obter_andar(
         )
 
         if not andar:
-
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Andar não encontrado"
-                }
+                detail={"sucesso": False, "mensagem": f"Andar {id_andar} não encontrado"}
             )
 
         salas = (
@@ -184,14 +167,10 @@ async def obter_andar(
     except HTTPException:
         raise
 
-    except Exception as e:
-
+    except Exception:
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -215,13 +194,9 @@ async def atualizar_andar(
         )
 
         if not andar:
-
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Andar não encontrado"
-                }
+                detail={"sucesso": False, "mensagem": f"Andar {id_andar} não encontrado"}
             )
 
         if dados.numero is not None and dados.numero != andar.numero:
@@ -237,7 +212,7 @@ async def atualizar_andar(
                     status_code=409,
                     detail={
                         "sucesso": False,
-                        "mensagem": "Já existe um andar com este número"
+                        "mensagem": f"Andar {dados.numero} já existe"
                     }
                 )
 
@@ -246,7 +221,6 @@ async def atualizar_andar(
         andar.pos_y = dados.pos_y if dados.pos_y is not None else andar.pos_y
 
         db.commit()
-
         db.refresh(andar)
 
         return {
@@ -263,26 +237,18 @@ async def atualizar_andar(
     except HTTPException:
         raise
 
-    except IntegrityError:
+    except IntegrityError as e:
         db.rollback()
         raise HTTPException(
             status_code=409,
-            detail={
-                "sucesso": False,
-                "mensagem": "Erro ao atualizar andar - dados duplicados"
-            }
+            detail={"sucesso": False, "mensagem": tratar_integrity_error(e)}
         )
 
-    except Exception as e:
-
+    except Exception:
         db.rollback()
-
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )
 
 
@@ -305,13 +271,9 @@ async def deletar_andar(
         )
 
         if not andar:
-
             raise HTTPException(
                 status_code=404,
-                detail={
-                    "sucesso": False,
-                    "mensagem": "Andar não encontrado"
-                }
+                detail={"sucesso": False, "mensagem": f"Andar {id_andar} não encontrado"}
             )
 
         salas = (
@@ -321,12 +283,11 @@ async def deletar_andar(
         )
 
         if salas:
-
             raise HTTPException(
                 status_code=409,
                 detail={
                     "sucesso": False,
-                    "mensagem": f"Não é possível deletar este andar. Existem {len(salas)} sala(s) associada(s)"
+                    "mensagem": f"Não é possível excluir o andar {andar.numero} — existem {len(salas)} sala(s) vinculada(s)"
                 }
             )
 
@@ -336,7 +297,6 @@ async def deletar_andar(
         }
 
         db.delete(andar)
-
         db.commit()
 
         return {
@@ -348,14 +308,9 @@ async def deletar_andar(
     except HTTPException:
         raise
 
-    except Exception as e:
-
+    except Exception:
         db.rollback()
-
         raise HTTPException(
             status_code=500,
-            detail={
-                "sucesso": False,
-                "mensagem": str(e)
-            }
+            detail={"sucesso": False, "mensagem": "Erro interno do servidor"}
         )

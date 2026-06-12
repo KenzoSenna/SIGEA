@@ -1,22 +1,60 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
-from database.settings import engine, init_db, SessionLocal
+from database.settings import engine, init_db, SessionLocal, settings
 from routes import routers as api_routers
 from routes import store
+
+logger = logging.getLogger("sigea")
+logging.basicConfig(level=logging.INFO)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+
+        init_db()
+
+        db = SessionLocal()
+        try:
+            store.seed_default_user(db)
+            removidos = store.purge_expired_tokens(db)
+            if removidos:
+                logger.info("Removidos %d tokens revogados já expirados", removidos)
+        finally:
+            db.close()
+    except Exception as exc:
+        raise RuntimeError("Falha ao conectar ao MySQL local. Verifique as credenciais e o banco de dados.") from exc
+
+    if settings.secret_key_is_default:
+        logger.warning(
+            "SECRET_KEY padrão em uso — defina SECRET_KEY no .env antes de ir para produção."
+        )
+
+    yield
+
 
 app = FastAPI(
     title="SIGEA - Sistema Integrado de Gestão de Espaços Acadêmicos",
     description="API para gerenciamento de salas e espaços acadêmicos",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan,
 )
 
+# Autenticação usa header Authorization (Bearer), não cookies — credenciais
+# de CORS ficam desabilitadas quando a origem é curinga.
+cors_origins = settings.cors_origins_list
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials="*" not in cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -52,27 +90,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Erro não tratado em %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
         content={"sucesso": False, "mensagem": "Erro interno do servidor"},
     )
 
-
-@app.on_event("startup")
-async def startup_event():
-    try:
-        with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
-        
-        init_db()
-
-        db = SessionLocal()
-        try:
-            store.seed_default_user(db)
-        finally:
-            db.close()
-    except Exception as exc:
-        raise RuntimeError("Falha ao conectar ao MySQL local. Verifique as credenciais e o banco de dados.") from exc
 
 for r in api_routers:
     app.include_router(r)

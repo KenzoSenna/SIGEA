@@ -23,6 +23,16 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field("HS256", env="JWT_ALGORITHM")
     access_token_expire_minutes: int = Field(60, env="ACCESS_TOKEN_EXPIRE_MINUTES")
 
+    cors_origins: str = Field("*", env="CORS_ORIGINS")
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def secret_key_is_default(self) -> bool:
+        return self.secret_key == "ChaveJwt"
+
     @property
     def database_url(self) -> str:
         return URL.create(

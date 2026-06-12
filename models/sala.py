@@ -1,32 +1,29 @@
-from pydantic import BaseModel, Field
-from typing import Optional
-from enum import Enum
+from sqlalchemy import Column, Integer, String, ForeignKey, Enum, Time, UniqueConstraint
+from enum import Enum as PyEnum
+from models.base import Base
 
 
-class StatusSala(str, Enum):
+class StatusSala(str, PyEnum):
     ATIVA = "ativa"
     MANUTENCAO = "manutencao"
+    INATIVA = "inativa"
 
 
-class SalaCreate(BaseModel):
-    nome: str = Field(..., min_length=1, max_length=50, description="Nome da sala")
-    capacidade: int = Field(..., gt=0, description="Capacidade de pessoas")
-    tipo: str = Field(..., max_length=50, description="Tipo de sala (ex: Laboratório, Sala de Aula)")
-    status: StatusSala = Field(default=StatusSala.ATIVA, description="Status da sala")
-    horario_inicio: str = Field(..., description="Horário de início (HH:MM)")
-    horario_fim: str = Field(..., description="Horário de fim (HH:MM)")
-    id_andar: int = Field(..., gt=0, description="ID do andar")
+class Sala(Base):
+    __tablename__ = "sala"
+    
+    __table_args__ = (
+        UniqueConstraint("nome", "id_andar", name="uq_sala_nome_andar"),
+    )
 
+    id_sala = Column(Integer, primary_key=True, autoincrement=True)
+    nome = Column(String(50), nullable=False)
+    capacidade = Column(Integer, nullable=False)
+    tipo = Column(String(50), nullable=True)
+    status = Column(Enum(StatusSala), nullable=False, default=StatusSala.ATIVA)
+    horario_inicio = Column(Time, nullable=True)
+    horario_fim = Column(Time, nullable=True)
+    id_andar = Column(Integer, ForeignKey("andar.id_andar"), nullable=False)
 
-class SalaResponse(BaseModel):
-    id_sala: int
-    nome: str
-    capacidade: int
-    tipo: str
-    status: StatusSala
-    horario_inicio: str
-    horario_fim: str
-    id_andar: int
-
-    class Config:
-        from_attributes = True
+    def __repr__(self):
+        return f"<Sala(id={self.id_sala}, nome='{self.nome}', capacidade={self.capacidade})>"

@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import sessionmaker
+from models import Base
 
 
 class Settings(BaseSettings):
@@ -19,13 +20,23 @@ class Settings(BaseSettings):
     )
 
     secret_key: str = Field("ChaveJwt", env="SECRET_KEY")
-    jwt_algorithm: str = Field("decoderAlg", env="JWT_ALGORITHM")
+    jwt_algorithm: str = Field("HS256", env="JWT_ALGORITHM")
     access_token_expire_minutes: int = Field(60, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+
+    cors_origins: str = Field("*", env="CORS_ORIGINS")
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def secret_key_is_default(self) -> bool:
+        return self.secret_key == "ChaveJwt"
 
     @property
     def database_url(self) -> str:
         return URL.create(
-            drivername=f"mysql+pymysql",
+            drivername="mysql+pymysql",
             username=self.db_user,
             password=self.db_password,
             host=self.db_host,
@@ -48,7 +59,7 @@ SessionLocal = sessionmaker(
     bind=engine,
     autoflush=False,
     autocommit=False,
-    future=True,
+    expire_on_commit=False,
 )
 
 
@@ -58,3 +69,6 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def init_db():
+    Base.metadata.create_all(bind=engine)

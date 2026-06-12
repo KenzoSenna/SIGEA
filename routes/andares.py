@@ -1,8 +1,8 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from routes.schemas import CriarAndarRequest, AtualizarAndarRequest, AndarResponse
-from routes.store import get_current_user, tratar_integrity_error
+from routes.store import get_current_user, tratar_integrity_error, exigir_tipo
 from database.settings import get_db
 from models import Andar, Sala, Usuario
 
@@ -21,6 +21,8 @@ async def criar_andar(
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+
+    exigir_tipo(current_user, "coordenador")
 
     try:
 
@@ -84,12 +86,15 @@ async def criar_andar(
     summary="Listar todos os andares"
 )
 async def listar_andares(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db)
 ):
 
     try:
 
-        andares = db.query(Andar).all()
+        total = db.query(Andar).count()
+        andares = db.query(Andar).order_by(Andar.numero).offset(skip).limit(limit).all()
 
         andares_list = [
             {
@@ -103,7 +108,7 @@ async def listar_andares(
 
         return {
             "sucesso": True,
-            "total": len(andares),
+            "total": total,
             "andares": andares_list
         }
 
@@ -185,6 +190,8 @@ async def atualizar_andar(
     db: Session = Depends(get_db)
 ):
 
+    exigir_tipo(current_user, "coordenador")
+
     try:
 
         andar = (
@@ -261,6 +268,8 @@ async def deletar_andar(
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+
+    exigir_tipo(current_user, "coordenador")
 
     try:
 

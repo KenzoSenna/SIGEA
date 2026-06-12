@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from routes.schemas import ReservaRequest
-from routes.store import get_current_user, verificar_conflito
+from routes.store import get_current_user, verificar_conflito, obter_sala_disponivel, exigir_dono_ou_coordenador
 from database.settings import get_db
-from models import Usuario, Reserva, Sala
+from models import Usuario, Reserva
 
 router = APIRouter(
     tags=["Reservas"]
@@ -37,13 +37,7 @@ async def create_reserva(
 
     try:
 
-        sala = db.query(Sala).filter(Sala.id_sala == dados.id_sala).first()
-
-        if not sala:
-            raise HTTPException(
-                status_code=404,
-                detail={"sucesso": False, "mensagem": f"Sala {dados.id_sala} não encontrada"}
-            )
+        obter_sala_disponivel(dados.id_sala, db)
 
         if verificar_conflito(
             id_sala=dados.id_sala,
@@ -92,17 +86,25 @@ async def create_reserva(
     summary="Listar todas as reservas"
 )
 async def listar_reservas(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    id_sala: int | None = Query(None, description="Filtrar por sala"),
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
 
     try:
 
-        reservas = db.query(Reserva).all()
+        query = db.query(Reserva)
+        if id_sala is not None:
+            query = query.filter(Reserva.id_sala == id_sala)
+
+        total = query.count()
+        reservas = query.order_by(Reserva.data_inicio).offset(skip).limit(limit).all()
 
         return {
             "sucesso": True,
-            "total": len(reservas),
+            "total": total,
             "reservas": [_serializar_reserva(r) for r in reservas]
         }
 
@@ -164,6 +166,8 @@ async def cancelar_reserva(
                 status_code=404,
                 detail={"sucesso": False, "mensagem": f"Reserva {id_reserva} não encontrada"}
             )
+
+        exigir_dono_ou_coordenador(current_user, reserva.id_usuario, "cancelar esta reserva")
 
         reserva_data = {
             "id_reserva": reserva.id_reserva,

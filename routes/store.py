@@ -1,11 +1,11 @@
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import HTTPException, status, Depends
 from jose import JWTError, jwt
 from database.settings import settings, SessionLocal, get_db
-from models import Usuario, Reserva, Evento, TokenBloqueado
+from models import Usuario, Reserva, Evento, TokenBloqueado, Sala, StatusSala
 from sqlalchemy.orm import Session
 
 
@@ -33,6 +33,11 @@ oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/login"
 )
 
+oauth2_scheme_optional = OAuth2PasswordBearer(
+    tokenUrl="/login",
+    auto_error=False
+)
+
 def verify_password(
     plain_password: str,
     hashed_password: str
@@ -54,7 +59,7 @@ def create_access_token(
 
     to_encode = data.copy()
 
-    expire = datetime.utcnow() + (
+    expire = datetime.now(timezone.utc) + (
         expires_delta or
         timedelta(
             minutes=settings.access_token_expire_minutes
@@ -95,10 +100,7 @@ def get_user_by_email(
             db.close()
 
 
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
-):
+def _autenticar_token(token: str, db: Session) -> Usuario:
 
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -148,6 +150,52 @@ def get_current_user(
     return usuario
 
 
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> Usuario:
+
+    return _autenticar_token(token, db)
+
+
+def get_current_user_optional(
+    token: str | None = Depends(oauth2_scheme_optional),
+    db: Session = Depends(get_db)
+) -> Usuario | None:
+
+    if token is None:
+        return None
+
+    return _autenticar_token(token, db)
+
+
+def exigir_tipo(usuario: Usuario, *tipos_permitidos: str):
+
+    if usuario.tipo not in tipos_permitidos:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "sucesso": False,
+                "mensagem": f"Permissão insuficiente — ação restrita a: {', '.join(tipos_permitidos)}"
+            }
+        )
+
+
+def exigir_dono_ou_coordenador(usuario: Usuario, id_dono: int | None, acao: str):
+
+    if usuario.tipo == "coordenador":
+        return
+
+    if id_dono is None or usuario.id_usuario != id_dono:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "sucesso": False,
+                "mensagem": f"Permissão insuficiente — apenas o responsável ou um coordenador pode {acao}"
+            }
+        )
+
+
 def verificar_conflito(
     id_sala: int,
     data_inicio: datetime,
@@ -157,35 +205,65 @@ def verificar_conflito(
     exclude_tipo: str = "reserva"
 ) -> bool:
 
-    reservas = (
-        db.query(Reserva)
-        .filter(Reserva.id_sala == id_sala)
-        .all()
+    reservas = db.query(Reserva.id_reserva).filter(
+        Reserva.id_sala == id_sala,
+        Reserva.data_inicio < data_fim,
+        Reserva.data_fim > data_inicio,
     )
 
-    for reserva in reservas:
+    if exclude_tipo == "reserva" and exclude_id is not None:
+        reservas = reservas.filter(Reserva.id_reserva != exclude_id)
 
-        if exclude_tipo == "reserva" and exclude_id is not None and reserva.id_reserva == exclude_id:
-            continue
+    if reservas.first() is not None:
+        return True
 
-        if data_inicio < reserva.data_fim and data_fim > reserva.data_inicio:
-            return True
-
-    eventos = (
-        db.query(Evento)
-        .filter(Evento.id_sala == id_sala)
-        .all()
+    eventos = db.query(Evento.id_evento).filter(
+        Evento.id_sala == id_sala,
+        Evento.data_inicio < data_fim,
+        Evento.data_fim > data_inicio,
     )
 
-    for evento in eventos:
+    if exclude_tipo == "evento" and exclude_id is not None:
+        eventos = eventos.filter(Evento.id_evento != exclude_id)
 
-        if exclude_tipo == "evento" and exclude_id is not None and evento.id_evento == exclude_id:
-            continue
+    return eventos.first() is not None
 
-        if data_inicio < evento.data_fim and data_fim > evento.data_inicio:
-            return True
 
-    return False
+def obter_sala_disponivel(
+    id_sala: int,
+    db: Session
+) -> Sala:
+
+    sala = db.query(Sala).filter(Sala.id_sala == id_sala).first()
+
+    if not sala:
+        raise HTTPException(
+            status_code=404,
+            detail={"sucesso": False, "mensagem": f"Sala {id_sala} não encontrada"}
+        )
+
+    if sala.status != StatusSala.ATIVA:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "sucesso": False,
+                "mensagem": f"Sala {id_sala} não está disponível (status: {sala.status.value})"
+            }
+        )
+
+    return sala
+
+
+def purge_expired_tokens(db: Session) -> int:
+
+    removidos = (
+        db.query(TokenBloqueado)
+        .filter(TokenBloqueado.expira_em < datetime.now(timezone.utc).replace(tzinfo=None))
+        .delete(synchronize_session=False)
+    )
+
+    db.commit()
+    return removidos
 
 
 def seed_default_user(
@@ -208,16 +286,22 @@ def seed_default_user(
             .first()
         )
 
+        # Usuário seed é o coordenador de bootstrap — sem ele não existiria
+        # nenhum coordenador para criar outros coordenadores e gerir salas/andares.
         if not existing:
 
             usuario = Usuario(
                 nome="Usuário Padrão",
                 email="usuario@email.com",
                 senha_hash=get_password_hash("senha123"),
-                tipo="professor",
+                tipo="coordenador",
             )
 
             db.add(usuario)
+            db.commit()
+
+        elif existing.tipo != "coordenador":
+            existing.tipo = "coordenador"
             db.commit()
 
     finally:

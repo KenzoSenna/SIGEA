@@ -1,11 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from datetime import datetime
 from routes.schemas import EventoCreate, UpdateEventoRequest, EventoResponse
-from routes.store import get_current_user, verificar_conflito, converter_para_datetime, tratar_integrity_error
+from routes.store import (
+    get_current_user,
+    verificar_conflito,
+    converter_para_datetime,
+    tratar_integrity_error,
+    obter_sala_disponivel,
+    exigir_tipo,
+    exigir_dono_ou_coordenador,
+)
 from database.settings import get_db
-from models import Usuario, Evento, Sala
+from models import Usuario, Evento
 
 router = APIRouter(
     tags=["Eventos"]
@@ -37,15 +44,11 @@ async def criar_evento(
     db: Session = Depends(get_db)
 ):
 
+    exigir_tipo(current_user, "professor", "coordenador")
+
     try:
 
-        sala = db.query(Sala).filter(Sala.id_sala == dados.id_sala).first()
-
-        if not sala:
-            raise HTTPException(
-                status_code=404,
-                detail={"sucesso": False, "mensagem": f"Sala {dados.id_sala} não encontrada"}
-            )
+        obter_sala_disponivel(dados.id_sala, db)
 
         data_inicio = converter_para_datetime(dados.data, dados.hora_inicio)
         data_fim = converter_para_datetime(dados.data, dados.hora_fim)
@@ -99,17 +102,25 @@ async def criar_evento(
     summary="Listar todos os eventos"
 )
 async def listar_eventos(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    id_sala: int | None = Query(None, description="Filtrar por sala"),
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
 
     try:
 
-        eventos = db.query(Evento).all()
+        query = db.query(Evento)
+        if id_sala is not None:
+            query = query.filter(Evento.id_sala == id_sala)
+
+        total = query.count()
+        eventos = query.order_by(Evento.data_inicio).offset(skip).limit(limit).all()
 
         return {
             "sucesso": True,
-            "total": len(eventos),
+            "total": total,
             "eventos": [_serializar_evento(e) for e in eventos]
         }
 
@@ -173,13 +184,10 @@ async def atualizar_evento(
                 detail={"sucesso": False, "mensagem": f"Evento {id_evento} não encontrado"}
             )
 
+        exigir_dono_ou_coordenador(current_user, evento.id_usuario, "alterar este evento")
+
         if dados.id_sala and dados.id_sala != evento.id_sala:
-            sala = db.query(Sala).filter(Sala.id_sala == dados.id_sala).first()
-            if not sala:
-                raise HTTPException(
-                    status_code=404,
-                    detail={"sucesso": False, "mensagem": f"Sala {dados.id_sala} não encontrada"}
-                )
+            obter_sala_disponivel(dados.id_sala, db)
 
         data_inicio = evento.data_inicio
         data_fim = evento.data_fim
@@ -261,6 +269,8 @@ async def deletar_evento(
                 status_code=404,
                 detail={"sucesso": False, "mensagem": f"Evento {id_evento} não encontrado"}
             )
+
+        exigir_dono_ou_coordenador(current_user, evento.id_usuario, "excluir este evento")
 
         evento_data = {
             "id_evento": evento.id_evento,

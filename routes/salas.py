@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends
+from typing import Literal
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from routes.schemas import SalaCreate, SalaResponse
-from routes.store import get_current_user, tratar_integrity_error
+from routes.store import get_current_user, tratar_integrity_error, exigir_tipo
 from database.settings import get_db
 from models import Sala, Andar, Usuario
 
@@ -34,6 +35,8 @@ async def criar_sala(
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+
+    exigir_tipo(current_user, "coordenador")
 
     try:
 
@@ -103,16 +106,27 @@ async def criar_sala(
     summary="Listar todas as salas"
 )
 async def listar_salas(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    id_andar: int | None = Query(None, description="Filtrar por andar"),
+    status: Literal["ativa", "manutencao", "inativa"] | None = Query(None, description="Filtrar por status"),
     db: Session = Depends(get_db)
 ):
 
     try:
 
-        salas = db.query(Sala).all()
+        query = db.query(Sala)
+        if id_andar is not None:
+            query = query.filter(Sala.id_andar == id_andar)
+        if status is not None:
+            query = query.filter(Sala.status == status)
+
+        total = query.count()
+        salas = query.order_by(Sala.id_sala).offset(skip).limit(limit).all()
 
         return {
             "sucesso": True,
-            "total": len(salas),
+            "total": total,
             "salas": [_serializar_sala(s) for s in salas]
         }
 
@@ -164,6 +178,8 @@ async def atualizar_sala(
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+
+    exigir_tipo(current_user, "coordenador")
 
     try:
 
@@ -246,6 +262,8 @@ async def deletar_sala(
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+
+    exigir_tipo(current_user, "coordenador")
 
     try:
 

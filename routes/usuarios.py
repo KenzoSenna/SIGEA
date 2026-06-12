@@ -1,9 +1,14 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from routes.schemas import CriarUsuarioRequest, AtualizarUsuarioRequest, UsuarioResponse
 from routes import store
-from routes.store import get_current_user, tratar_integrity_error
+from routes.store import (
+    get_current_user,
+    get_current_user_optional,
+    tratar_integrity_error,
+    exigir_dono_ou_coordenador,
+)
 from database.settings import get_db
 from models import Usuario, TipoUsuario
 
@@ -11,7 +16,17 @@ router = APIRouter(tags=["Usuários"])
 
 
 @router.post("/usuarios", summary="Criar novo usuário", response_model=dict)
-async def criar_usuario(dados: CriarUsuarioRequest, db: Session = Depends(get_db)):
+async def criar_usuario(
+    dados: CriarUsuarioRequest,
+    current_user: Usuario | None = Depends(get_current_user_optional),
+    db: Session = Depends(get_db)
+):
+    if dados.tipo == "coordenador" and (current_user is None or current_user.tipo != "coordenador"):
+        raise HTTPException(
+            status_code=403,
+            detail={"sucesso": False, "mensagem": "Apenas um coordenador pode criar outro coordenador"}
+        )
+
     usuario_existente = db.query(Usuario).filter(Usuario.email == dados.email.lower()).first()
     if usuario_existente:
         raise HTTPException(
@@ -51,9 +66,15 @@ async def criar_usuario(dados: CriarUsuarioRequest, db: Session = Depends(get_db
 
 
 @router.get("/usuarios", summary="Listar todos os usuários")
-async def listar_usuarios(db: Session = Depends(get_db)):
+async def listar_usuarios(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     try:
-        usuarios = db.query(Usuario).all()
+        total = db.query(Usuario).count()
+        usuarios = db.query(Usuario).order_by(Usuario.id_usuario).offset(skip).limit(limit).all()
         lista_usuarios = [
             {
                 "id_usuario": u.id_usuario,
@@ -66,7 +87,7 @@ async def listar_usuarios(db: Session = Depends(get_db)):
         ]
         return {
             "sucesso": True,
-            "total": len(usuarios),
+            "total": total,
             "usuarios": lista_usuarios
         }
     except Exception:
@@ -74,7 +95,11 @@ async def listar_usuarios(db: Session = Depends(get_db)):
 
 
 @router.get("/usuarios/{id_usuario}", summary="Obter detalhes de um usuário")
-async def obter_usuario(id_usuario: int, db: Session = Depends(get_db)):
+async def obter_usuario(
+    id_usuario: int,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     try:
         usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
         if not usuario:
@@ -107,11 +132,19 @@ async def atualizar_usuario(
     db: Session = Depends(get_db)
 ):
     try:
+        exigir_dono_ou_coordenador(current_user, id_usuario, "alterar este usuário")
+
         usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
         if not usuario:
             raise HTTPException(
                 status_code=404,
                 detail={"sucesso": False, "mensagem": f"Usuário {id_usuario} não encontrado"}
+            )
+
+        if dados.tipo is not None and dados.tipo != usuario.tipo and current_user.tipo != "coordenador":
+            raise HTTPException(
+                status_code=403,
+                detail={"sucesso": False, "mensagem": "Apenas um coordenador pode alterar o tipo de um usuário"}
             )
 
         if dados.email and dados.email != usuario.email:
@@ -162,6 +195,8 @@ async def deletar_usuario(
     db: Session = Depends(get_db)
 ):
     try:
+        exigir_dono_ou_coordenador(current_user, id_usuario, "excluir este usuário")
+
         usuario = db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
         if not usuario:
             raise HTTPException(
@@ -185,6 +220,9 @@ async def deletar_usuario(
         }
     except HTTPException:
         raise
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(status_code=409, detail={"sucesso": False, "mensagem": tratar_integrity_error(e)})
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail={"sucesso": False, "mensagem": "Erro interno do servidor"})

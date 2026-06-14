@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from routes.schemas import CriarAndarRequest, AtualizarAndarRequest, AndarResponse
-from routes.store import get_current_user, tratar_integrity_error, exigir_tipo
+from schemas import CriarAndarRequest, AtualizarAndarRequest, AndarResponse
+from dependencies.auth import get_current_user
+from services.authorization import exigir_tipo
+from utils.db import tratar_integrity_error
 from database.settings import get_db
 from models import Andar, Sala, Usuario
 

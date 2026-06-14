@@ -1,16 +1,13 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from routes.schemas import CriarUsuarioRequest, AtualizarUsuarioRequest, UsuarioResponse
-from routes import store
-from routes.store import (
-    get_current_user,
-    get_current_user_optional,
-    tratar_integrity_error,
-    exigir_dono_ou_coordenador,
-)
+from schemas import CriarUsuarioRequest, AtualizarUsuarioRequest, UsuarioResponse
+from core.security import get_password_hash
+from dependencies.auth import get_current_user, get_current_user_optional
+from services.authorization import exigir_dono_ou_coordenador
+from utils.db import tratar_integrity_error
 from database.settings import get_db
-from models import Usuario, TipoUsuario
+from models import Usuario
 
 router = APIRouter(tags=["Usuários"])
 
@@ -38,7 +35,7 @@ async def criar_usuario(
         novo_usuario = Usuario(
             nome=dados.nome,
             email=dados.email.lower(),
-            senha_hash=store.get_password_hash(dados.senha),
+            senha_hash=get_password_hash(dados.senha),
             tipo=dados.tipo,
         )
         db.add(novo_usuario)
@@ -160,7 +157,7 @@ async def atualizar_usuario(
         if dados.email is not None:
             usuario.email = dados.email
         if dados.senha is not None:
-            usuario.senha_hash = store.get_password_hash(dados.senha)
+            usuario.senha_hash = get_password_hash(dados.senha)
         if dados.tipo is not None:
             usuario.tipo = dados.tipo
 

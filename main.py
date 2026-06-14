@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from database.settings import engine, init_db, SessionLocal, settings
 from routes import routers as api_routers
-from routes import store
+from services.manutencao import seed_default_user, purge_expired_tokens
 
 logger = logging.getLogger("sigea")
 logging.basicConfig(level=logging.INFO)
@@ -24,8 +24,8 @@ async def lifespan(app: FastAPI):
 
         db = SessionLocal()
         try:
-            store.seed_default_user(db)
-            removidos = store.purge_expired_tokens(db)
+            seed_default_user(db)
+            removidos = purge_expired_tokens(db)
             if removidos:
                 logger.info("Removidos %d tokens revogados já expirados", removidos)
         finally:

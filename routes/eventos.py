@@ -1,16 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from routes.schemas import EventoCreate, UpdateEventoRequest, EventoResponse
-from routes.store import (
-    get_current_user,
-    verificar_conflito,
-    converter_para_datetime,
-    tratar_integrity_error,
-    obter_sala_disponivel,
-    exigir_tipo,
-    exigir_dono_ou_coordenador,
-)
+from schemas import EventoCreate, UpdateEventoRequest, EventoResponse
+from dependencies.auth import get_current_user
+from services.agenda import verificar_conflito, obter_sala_disponivel
+from services.authorization import exigir_tipo, exigir_dono_ou_coordenador
+from utils.datas import converter_para_datetime
+from utils.db import tratar_integrity_error
 from database.settings import get_db
 from models import Usuario, Evento
 

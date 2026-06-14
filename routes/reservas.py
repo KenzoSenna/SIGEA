@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from routes.schemas import ReservaRequest
-from routes.store import get_current_user, verificar_conflito, obter_sala_disponivel, exigir_dono_ou_coordenador
+from schemas import ReservaRequest
+from dependencies.auth import get_current_user
+from services.agenda import verificar_conflito, obter_sala_disponivel
+from services.authorization import exigir_dono_ou_coordenador
 from database.settings import get_db
 from models import Usuario, Reserva
 

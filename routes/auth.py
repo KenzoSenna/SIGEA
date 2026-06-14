@@ -1,21 +1,27 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from jose import jwt, JWTError
-from routes.schemas import LoginRequest
-from routes import store
-from database.settings import get_db, settings
+from schemas import LoginRequest
+from core.security import (
+    create_access_token,
+    decode_access_token,
+    oauth2_scheme,
+    verify_password,
+)
+from services.usuarios import get_user_by_email
+from dependencies.auth import get_current_user
+from database.settings import get_db
 from models import Usuario, TokenBloqueado
 
 router = APIRouter(tags=["Auth"])
 
 @router.post("/login", summary="Fazer login")
 async def login(dados: LoginRequest, db: Session = Depends(get_db)):
-    usuario = store.get_user_by_email(dados.email, db)
-    if usuario is None or not store.verify_password(dados.senha, usuario.senha_hash):
+    usuario = get_user_by_email(dados.email, db)
+    if usuario is None or not verify_password(dados.senha, usuario.senha_hash):
         raise HTTPException(status_code=401, detail={"sucesso": False, "mensagem": "Credenciais inválidas"})
 
-    access_token = store.create_access_token({
+    access_token = create_access_token({
         "sub": str(usuario.id_usuario),
         "email": usuario.email,
         "tipo": usuario.tipo
@@ -41,18 +47,14 @@ async def login(dados: LoginRequest, db: Session = Depends(get_db)):
     summary="Fazer logout"
 )
 async def logout(
-    token: str = Depends(store.oauth2_scheme),
-    current_user: Usuario = Depends(store.get_current_user),
+    token: str = Depends(oauth2_scheme),
+    current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
 
     try:
 
-        payload = jwt.decode(
-            token,
-            settings.secret_key,
-            algorithms=[settings.jwt_algorithm]
-        )
+        payload = decode_access_token(token)
 
         jti = payload.get("jti")
         exp = payload.get("exp")

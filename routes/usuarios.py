@@ -18,10 +18,10 @@ async def criar_usuario(
     current_user: Usuario | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
-    if dados.tipo == "coordenador" and (current_user is None or current_user.tipo != "coordenador"):
+    if dados.tipo in ["coordenador", "professor"] and (current_user is None or current_user.tipo != "coordenador"):
         raise HTTPException(
             status_code=403,
-            detail={"sucesso": False, "mensagem": "Apenas um coordenador pode criar outro coordenador"}
+            detail={"sucesso": False, "mensagem": "Apenas um coordenador pode criar contas com privilégios (professor/coordenador)"}
         )
 
     usuario_existente = db.query(Usuario).filter(Usuario.email == dados.email.lower()).first()

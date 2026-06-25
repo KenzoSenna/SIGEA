@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from schemas import ReservaRequest
 from dependencies.auth import get_current_user
 from services.agenda import verificar_conflito, obter_sala_disponivel
-from services.authorization import exigir_dono_ou_coordenador
+from services.authorization import exigir_tipo, exigir_dono_ou_coordenador
 from database.settings import get_db
 from models import Usuario, Reserva
 
@@ -36,6 +36,8 @@ async def create_reserva(
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+
+    exigir_tipo(current_user, "professor", "coordenador")
 
     try:
 
@@ -158,6 +160,8 @@ async def cancelar_reserva(
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+
+    exigir_tipo(current_user, "professor", "coordenador")
 
     try:
 

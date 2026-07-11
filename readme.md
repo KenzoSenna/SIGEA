@@ -232,7 +232,7 @@ Projeto em desenvolvimento.
 * Leonardo Franco de Almeida
 * Luísa de Matos
 * Matheus Camarotto
-* Matheus Silva
+* Matheus Felipe Dias da Silva
 * Nicolas Wolf
 * Vinícius Lourençon
 * Jonathan Patrocinio Dos Santos
